@@ -20,36 +20,54 @@ export default function AICoachTeaser() {
   };
 
   return (
-    <section className="py-20 bg-white">
+    <section className="py-20 bg-white dark:bg-gray-900 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
         <div className="text-center mb-16">
-          <div className="inline-flex items-center space-x-2 bg-green-100 text-green-700 px-4 py-2 rounded-full mb-6">
+          <div className="inline-flex items-center space-x-2 
+            bg-green-100 dark:bg-green-900/40 
+            text-green-700 dark:text-green-300 
+            px-4 py-2 rounded-full mb-6">
             <Sparkles className="w-4 h-4" />
             <span className="text-sm font-medium">Para Candidatos</span>
           </div>
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+
+          <h2 className="text-4xl font-bold 
+            text-gray-900 dark:text-white 
+            mb-4">
             Prepare-se com Inteligência Artificial
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+
+          <p className="text-xl 
+            text-gray-600 dark:text-gray-300 
+            max-w-3xl mx-auto">
             Nosso Coach de IA treina você para entrevistas reais.
             Pratique respostas, receba feedback instantâneo e chegue confiante na entrevista.
           </p>
         </div>
 
         <div className="max-w-4xl mx-auto">
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-8 shadow-xl border border-blue-100">
+          <div className="bg-gradient-to-br 
+            from-blue-50 to-indigo-50 
+            dark:from-gray-800 dark:to-gray-900 
+            rounded-2xl p-8 shadow-xl 
+            border border-blue-100 dark:border-gray-700">
+
             {!showFeedback ? (
               <div className="space-y-6">
-                <div className="bg-white rounded-xl p-6 shadow-md">
+                
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md">
                   <div className="flex items-start space-x-3 mb-4">
                     <div className="bg-blue-600 rounded-lg p-2">
                       <Sparkles className="w-5 h-5 text-white" />
                     </div>
+
                     <div>
-                      <div className="text-sm font-semibold text-blue-600 mb-1">
+                      <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-1">
                         Pergunta do Coach de IA
                       </div>
-                      <p className="text-gray-800 text-lg leading-relaxed">
+
+                      <p className="text-gray-800 dark:text-gray-200 text-lg leading-relaxed">
                         {aiInterviewQuestion}
                       </p>
                     </div>
@@ -67,16 +85,14 @@ export default function AICoachTeaser() {
                     } text-white rounded-full p-8 transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 disabled:hover:translate-y-0`}
                   >
                     <Mic className="w-12 h-12" />
-                    {isRecording && (
-                      <span className="absolute inset-0 rounded-full bg-red-400 animate-ping opacity-75" />
-                    )}
                   </button>
 
                   <div className="text-center">
-                    <p className="text-gray-700 font-medium">
+                    <p className="text-gray-700 dark:text-gray-300 font-medium">
                       {isRecording ? 'Gravando sua resposta...' : 'Clique para responder'}
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">
+
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                       {isRecording ? 'Fale naturalmente' : 'Use o microfone para praticar'}
                     </p>
                   </div>
@@ -84,10 +100,11 @@ export default function AICoachTeaser() {
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="bg-white rounded-xl p-6 shadow-md">
+                
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md">
                   <div className="flex items-center space-x-3 mb-6">
                     <CheckCircle className="w-6 h-6 text-green-500" />
-                    <h3 className="text-xl font-bold text-gray-900">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
                       Análise Completa
                     </h3>
                   </div>
@@ -96,23 +113,29 @@ export default function AICoachTeaser() {
                     {mockAIFeedback.map((feedback, index) => (
                       <div
                         key={index}
-                        className="bg-gray-50 rounded-lg p-4 transition-all duration-300 hover:shadow-md"
+                        className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4"
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <span className="font-semibold text-gray-800">
+                          <span className="font-semibold text-gray-800 dark:text-gray-200">
                             {feedback.category}
                           </span>
-                          <span className="text-green-600 font-bold text-lg">
+
+                          <span className="text-green-600 dark:text-green-400 font-bold text-lg">
                             {feedback.score}%
                           </span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+
+                        <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 mb-2">
                           <div
-                            className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full transition-all duration-1000"
+                            className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full"
                             style={{ width: `${feedback.score}%` }}
                           />
                         </div>
-                        <span className="inline-block bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 rounded-full">
+
+                        <span className="inline-block 
+                          bg-green-100 dark:bg-green-900/40 
+                          text-green-700 dark:text-green-300 
+                          text-xs font-semibold px-3 py-1 rounded-full">
                           {feedback.label}
                         </span>
                       </div>
@@ -123,7 +146,7 @@ export default function AICoachTeaser() {
                 <div className="text-center">
                   <button
                     onClick={resetDemo}
-                    className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200"
+                    className="text-blue-600 dark:text-blue-400 hover:opacity-80 font-medium transition-colors duration-200"
                   >
                     Tentar Outra Pergunta →
                   </button>
@@ -137,6 +160,7 @@ export default function AICoachTeaser() {
               Começar Treino Gratuito
             </button>
           </div>
+
         </div>
       </div>
     </section>
