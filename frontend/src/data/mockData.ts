@@ -1,4 +1,10 @@
 import { Candidate, AIFeedback, JobPosting } from '../types';
+import { User } from '../services/auth';
+
+export const mockUsers: User[] = [
+    { id: '1', name: 'João Silva (Candidato)', email: 'candidato@teste.com', role: 'user' },
+    { id: '2', name: 'Ana Recrutadora', email: 'rh@teste.com', role: 'admin' },
+];
 
 export const mockCandidates: Candidate[] = [
     {
