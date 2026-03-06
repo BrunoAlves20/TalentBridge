@@ -12,6 +12,14 @@ Este projeto foi inicializado com [Next.js](https://nextjs.org/) (App Router) e 
 - **Estilização:** [Tailwind CSS v4](https://tailwindcss.com/)
 - **Ícones:** [Lucide React](https://lucide.dev/)
 - **Gerenciamento de Tema:** `next-themes` (Dark/Light mode automático e manual)
+- **Integração API:** `fetch` nativo integrado com backend FastAPI (Python)
+
+## ✨ Funcionalidades Implementadas (Integração Front/Back)
+
+- **Autenticação Real:** Telas de Login e Cadastro conectadas ao banco de dados MySQL, com roteamento inteligente baseado no tipo de usuário (`CANDIDATO` ou `RECRUTADOR`).
+- **Área do Candidato Dinâmica:** Layout com `Sidebar` persistente para navegação fluida.
+- **Dashboard de Currículo (`CurriculoFormView`):** Formulário complexo com suporte a listas dinâmicas (experiências, formações, habilidades) e upload de arquivos (PDF)   utilizando `FormData`.
+- **Gestão de Perfil (`AreaCandidatoView`):** Tela de perfil pessoal com sistema de bloqueio/edição e carregamento de dados via requisições `GET` e `PUT`.
 
 ## 📁 Estrutura do Projeto
 
@@ -22,21 +30,27 @@ frontend/
 ├── src/
 │   ├── app/                 # Rotas do Next.js (App Router) e Layout Global
 │   │   ├── (auth)/          # Grupo de rotas de autenticação (Login, Register)
-│   │   ├── (candidate)/     # Grupo de rotas do candidato (CV Setup, Simulador IA)
+│   │   ├── (candidate)/     # Grupo de rotas do candidato
+│   │   │   ├── area-candidato/ # Dashboard Home e setup de Currículo
+│   │   │   │   └── perfil/  # Rota para visualização e edição de dados pessoais
+│   │   │   └── layout.tsx   # Layout do candidato (Injeta a Sidebar)
 │   │   ├── (recruiter)/     # Grupo de rotas do recrutador (Dashboard, Ranking)
 │   │   ├── globals.css      # Estilizações globais e variáveis Tailwind
 │   │   └── layout.tsx       # Root layout com ThemeProvider
 │   ├── components/          # Componentes de UI reutilizáveis (Views)
-│   │   ├── auth/            # Views de tela de Login/Registro
-│   │   ├── candidate/       # Views do menu de Candidato
-│   │   ├── home/            # Componentes da Landing Page (Hero, Coach, Recruiter Menu)
+│   │   ├── auth/            # Views de tela de Login/Registro integradas à API
+│   │   ├── candidate/       # Views da área logada do candidato
+│   │   │   ├── AreaCandidatoView.tsx # Formulário de Perfil (GET/PUT)
+│   │   │   ├── CandidateSidebar.tsx  # Menu de navegação lateral do layout
+│   │   │   └── CurriculoFormView.tsx # Formulário dinâmico do Currículo e Upload
+│   │   ├── home/            # Componentes da Landing Page
 │   │   ├── layout/          # Componentes globais de Layout (Navbar, Footer)
 │   │   ├── providers/       # Context Providers (ThemeProvider)
 │   │   ├── recruiter/       # Views do Recrutador
 │   │   └── ui/              # Componentes base e primitivos (ex: ThemeToggle)
-│   ├── data/                # Mock data estático para o desenvolvimento do MVP
+│   ├── data/                # Mock data estático (substituído gradativamente pela API)
 │   ├── hooks/               # Custom React hooks (lógica cliente isolada)
-│   ├── services/            # Camada de requisições à API (ex: Axios calls para o FastAPI)
+│   ├── services/            # Camada de requisições à API (ex: auth.ts comunicando com a porta 8000)
 │   ├── types/               # Definições de Tipos/Interfaces do TypeScript
 │   └── utils/               # Funções auxiliares gerais
 ├── public/                  # Assets estáticos (imagens, favicons, etc.)

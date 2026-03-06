@@ -12,7 +12,8 @@ export function RegisterView() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [role, setRole] = useState<UserRole>('user');
+    // Alterado para bater com o formato do banco de dados
+    const [role, setRole] = useState<UserRole>('CANDIDATO');
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -23,16 +24,19 @@ export function RegisterView() {
         setError('');
 
         try {
-            const user = await authService.register(name, email, password, role);
+            // Chama a nossa API Python
+            const response = await authService.register(name, email, password, role);
 
-            // Salva mock na sessão local
-            localStorage.setItem('@TalentBridge:user', JSON.stringify(user));
+            // Salva o ID gerado pelo banco para a tela de Perfil Pessoal usar
+            localStorage.setItem('usuario_id', response.id.toString());
 
-            // Redireciona baseado na Role
-            if (user.role === 'admin') {
-                router.push('/recruiter/dashboard');
+            // Redireciona baseado no tipo de usuário
+            if (role === 'RECRUTADOR') {
+                // Vai para a página do recrutador (que no momento pode estar vazia)
+                router.push('/dashboard');
             } else {
-                router.push('/candidate/dashboard');
+                // Vai para a página "Feia mas Funcional" que criamos para adicionar os dados
+                router.push('/area-candidato');
             }
         } catch (err: any) {
             setError(err.message);
@@ -67,8 +71,8 @@ export function RegisterView() {
                             <div className="grid grid-cols-2 gap-4">
                                 <button
                                     type="button"
-                                    onClick={() => setRole('user')}
-                                    className={`relative flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-all ${role === 'user'
+                                    onClick={() => setRole('CANDIDATO')}
+                                    className={`relative flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-all ${role === 'CANDIDATO'
                                         ? 'border-primary bg-primary/5 text-primary'
                                         : 'border-border bg-background text-muted-foreground hover:border-border/80'
                                         }`}
@@ -80,8 +84,8 @@ export function RegisterView() {
 
                                 <button
                                     type="button"
-                                    onClick={() => setRole('admin')}
-                                    className={`relative flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-all ${role === 'admin'
+                                    onClick={() => setRole('RECRUTADOR')}
+                                    className={`relative flex flex-col items-center p-4 border rounded-lg cursor-pointer transition-all ${role === 'RECRUTADOR'
                                         ? 'border-primary bg-primary/5 text-primary'
                                         : 'border-border bg-background text-muted-foreground hover:border-border/80'
                                         }`}
@@ -96,7 +100,7 @@ export function RegisterView() {
                         {/* Nome Completo */}
                         <div>
                             <label htmlFor="name" className="block text-sm font-medium text-foreground">
-                                Nome completo {role === 'admin' && 'ou nome da Empresa'}
+                                Nome completo {role === 'RECRUTADOR' && 'ou nome da Empresa'}
                             </label>
                             <div className="mt-1 relative rounded-md shadow-sm">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -109,7 +113,7 @@ export function RegisterView() {
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     className="focus:ring-ring focus:border-ring block w-full pl-10 sm:text-sm border-input rounded-md bg-background text-foreground h-11 transition-all"
-                                    placeholder={role === 'admin' ? "Tech Company LTDA" : "João da Silva"}
+                                    placeholder={role === 'RECRUTADOR' ? "Tech Company LTDA" : "João da Silva"}
                                 />
                             </div>
                         </div>
@@ -130,7 +134,7 @@ export function RegisterView() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     className="focus:ring-ring focus:border-ring block w-full pl-10 sm:text-sm border-input rounded-md bg-background text-foreground h-11 transition-all"
-                                    placeholder={role === 'admin' ? "rh@empresa.com" : "exemplo@email.com"}
+                                    placeholder={role === 'RECRUTADOR' ? "rh@empresa.com" : "exemplo@email.com"}
                                 />
                             </div>
                         </div>
@@ -157,7 +161,7 @@ export function RegisterView() {
                             </div>
                         </div>
 
-                        {/* Mensagem de Erro */}
+                        {/* Mensagem de Erro (Vinda do Backend) */}
                         {error && (
                             <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md border border-destructive/20 text-center animate-in fade-in slide-in-from-top-2">
                                 {error}
@@ -175,7 +179,7 @@ export function RegisterView() {
                                     <Loader2 className="animate-spin h-5 w-5" />
                                 ) : (
                                     <span className="flex items-center gap-2">
-                                        {role === 'admin' ? "Criar conta de Recrutador" : "Criar conta de Candidato"}
+                                        {role === 'RECRUTADOR' ? "Criar conta de Recrutador" : "Criar conta de Candidato"}
                                         <ArrowRight className="h-4 w-4" />
                                     </span>
                                 )}
