@@ -1,5 +1,10 @@
-import { LoginView } from "@/components/auth/LoginView";
+import AuthTransition from "@/components/AuthTransition";
+import { LoginRegisterView } from "@/components/auth/LoginRegisterView";
 
 export default function LoginPage() {
-  return <LoginView />;
+  return (
+    <AuthTransition>
+      <LoginRegisterView />
+    </AuthTransition>
+  );
 }

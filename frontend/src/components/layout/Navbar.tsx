@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Briefcase } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
+
 export function Navbar() {
     return (
         <nav className="border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-slate-950/80 transition-colors duration-300">

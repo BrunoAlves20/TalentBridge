@@ -10,6 +10,9 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+
+    "baseUrl": ".",   // 👈 ADICIONE ISSO
+
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -17,17 +20,20 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+
     "plugins": [
       {
         "name": "next"
       }
     ],
+
     "paths": {
       "@/*": [
         "./src/*"
       ]
     }
   },
+
   "include": [
     "next-env.d.ts",
     "**/*.ts",
@@ -36,6 +42,7 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
+
   "exclude": [
     "node_modules"
   ]
