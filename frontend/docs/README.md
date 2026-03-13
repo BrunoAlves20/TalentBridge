@@ -19,29 +19,47 @@ O projeto segue uma arquitetura baseada no padrão *Container/View* para organiz
 
 ```text
 frontend/
-├── src/
-│   ├── app/                 # Rotas do Next.js (App Router) e Layout Global
-│   │   ├── (auth)/          # Grupo de rotas de autenticação (Login, Register)
-│   │   ├── (candidate)/     # Grupo de rotas do candidato (CV Setup, Simulador IA)
-│   │   ├── (recruiter)/     # Grupo de rotas do recrutador (Dashboard, Ranking)
-│   │   ├── globals.css      # Estilizações globais e variáveis Tailwind
-│   │   └── layout.tsx       # Root layout com ThemeProvider
-│   ├── components/          # Componentes de UI reutilizáveis (Views)
-│   │   ├── auth/            # Views de tela de Login/Registro
-│   │   ├── candidate/       # Views do menu de Candidato
-│   │   ├── home/            # Componentes da Landing Page (Hero, Coach, Recruiter Menu)
-│   │   ├── layout/          # Componentes globais de Layout (Navbar, Footer)
-│   │   ├── providers/       # Context Providers (ThemeProvider)
-│   │   ├── recruiter/       # Views do Recrutador
-│   │   └── ui/              # Componentes base e primitivos (ex: ThemeToggle)
-│   ├── data/                # Mock data estático para o desenvolvimento do MVP
-│   ├── hooks/               # Custom React hooks (lógica cliente isolada)
-│   ├── services/            # Camada de requisições à API (ex: Axios calls para o FastAPI)
-│   ├── types/               # Definições de Tipos/Interfaces do TypeScript
-│   └── utils/               # Funções auxiliares gerais
-├── public/                  # Assets estáticos (imagens, favicons, etc.)
-├── tailwind.config.ts       # Configurações do TailwindCSS
-└── tsconfig.json            # Configurações do TypeScript (Path aliases configurados para `@/*`)
+├── docs/                  # Documentação central do Frontend (README.md, assets de doc, guias)
+├── public/                # Assets estáticos servidos diretamente na URL raiz (ícones, SVGs, imagens públicas)
+├── src/                   # Código fonte principal e arquitetura da aplicação
+│   ├── app/                 # Sistema de Rotas Baseado em Arquivos do Next.js (App Router)
+│   │   ├── auth/            # Grupo de rotas acessíveis apenas para autenticação (Login, Registro)
+│   │   ├── recruiter/       # Grupo de rotas privadas do fluxo de Recrutador (Empregador)
+│   │   │   ├── dashboard/   # Tela Principal do Recrutador (Visão Geral de Vagas e Estatísticas)
+│   │   │   └── ranking/     # Visão de Tabela e Ranking dos Melhores Candidatos com match IA
+│   │   ├── candidate/       # Rotas de acesso direto do Candidato (Pós-login)
+│   │   │   ├── dashboard/   # Painel Principal do Candidato logado
+│   │   │   ├── simulator/   # Ambiente do Simulador Interativo de Entrevista por IA
+│   │   │   └── onboarding/  # Fluxo Responsivo para o Assistente Passo-a-Passos de Perfil
+│   │   │       ├── passo1/  # Seleção do Método de Extração (Extração Via IA vs Manual)
+│   │   │       ├── passo2/  # Formulário de Dados Pessoais, Links Úteis e Formação Acadêmica
+│   │   │       └── passo3/  # Formulário de Experiência Profissional, Hard Skills e Soft Skills
+│   │   ├── globals.css      # Folha de Estilos Global (Importações do Tailwind CSS e Variáveis de CSS/Tema)
+│   │   └── layout.tsx       # Root Layout que encapsula toda aplicação (fornece ThemeProvider e Fontes)
+│   ├── components/          # Reutilizáveis de Interface de Usuário (Views e Fragmentos React)
+│   │   ├── auth/            # Blocos Visuais das Telas de Autenticação (Form de Login, Cadastro)
+│   │   ├── candidate/       # Componentes Específicos da Experiência do Candidato
+│   │   │   ├── dashboard/   # Widgets e Menus do Dashboard (Sidebar do Candidato, CTA do Simulador)
+│   │   │   └── onboarding/  # Os componentes principais renderizados em cada Passo do Onboarding
+│   │   ├── home/            # Seções Reutilizáveis que formam a Landing Page Pública
+│   │   ├── layout/          # Componentes Globalmente Fixos (Navbar Superior, Footer de Rodapé)
+│   │   ├── providers/       # Englobadores (Wrappers) Globais com React Context (Contextos Visuais como Tema)
+│   │   ├── recruiter/       # Componentes Visuais do Painel do Empregador/Recrutador
+│   │   └── ui/              # Componentes "Atômicos" da Base do App (Primitivos como Switch de Temas, Botões Base)
+│   ├── contexts/            # Gerenciamento de Estado React Context API isolado da UI
+│   │                        # (ex: OnboardingContext persistindo dados entre sessionStorage/localStorage)
+│   ├── data/                # Dados Estáticos, Mocks ou Valores Iniciais pré-produção (ex: Mock de Candidatos)
+│   ├── services/            # Camada de Regras de Negócio Externas (Funções Fetch para endpoints de API backend)
+│   └── types/               # Definições Fortemente Tipadas Globais e Interfaces do TypeScript para DTOs
+├── .gitignore             # Regras de pastas ignoradas no mapeamento do versionamento Git
+├── eslint.config.mjs      # Configurações de Linting da Equipe (padronização de regras p/ código limpo ESLint)
+├── next-env.d.ts          # Declarações Automáticas do Compilador do Next.js para referências Typescript
+├── next.config.ts         # Regras de Configuração do Bundler/Build da aplicação NextJS
+├── package.json           # Manifesto de Dependências do Projeto Node.js e Scripts Automáticos (dev, build, lint)
+├── package-lock.json      # Árvore "Travada" com versões exatas instaladas das dependências base (cache Lockfile)
+├── postcss.config.mjs     # Instruções do Compilador/Pré-Processor CSS do Tailwind
+├── tailwind.config.ts     # Configuração Visual do Sistema de Design do Tailwind v4 (temas, cores, plugins)
+└── tsconfig.json          # Opções rigorosas de Compilação do TypeScript (ex: habilitando Path Aliases `@/*`)
 ```
 
 ## ⚙️ Pré-requisitos

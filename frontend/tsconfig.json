@@ -11,7 +11,7 @@
     "strict": true,
     "noEmit": true,
 
-    "baseUrl": ".",   // 👈 ADICIONE ISSO
+    "baseUrl": ".",
 
     "esModuleInterop": true,
     "module": "esnext",
