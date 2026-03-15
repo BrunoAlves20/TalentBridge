@@ -8,9 +8,9 @@ import { RegisterView } from "./RegisterView";
 
 type Mode = "login" | "register";
 
-export function LoginRegisterView() {
+export function LoginRegisterView({ initialMode = "login" }: { initialMode?: Mode }) {
 
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>(initialMode);
 
   function toggleMode() {
     setMode(prev => (prev === "login" ? "register" : "login"));
