@@ -35,4 +35,4 @@ O sistema conta com um backlog priorizado para atender as principais necessidade
 * **Dashboard do Recrutador**: Interface consolidada que permite a visão de vagas ativas e gestão completa do pipeline de candidatos.
 * **Relatório Pós-Entrevista e Feedback**: Análise gerada por Inteligência Artificial indicando clareza e confiança, além de apontar pontos fortes e de melhoria após as simulações.
 
----
+
