@@ -22,13 +22,13 @@ export function LoginView() {
             const user = await authService.login(email, password);
 
             // Aqui idealmente você salvaria o token num Cookie e o User num Context.
-            localStorage.setItem('@TalentBridge:user', JSON.stringify(user));
+            localStorage.setItem('usuario_id', user.id.toString());
 
             // Redirecionamento Baseado em Role
-            if (user.role === 'admin') {
-                router.push('/recruiter/dashboard'); // Tela inicial do Recrutador
+            if (user.role === 'RECRUTADOR') {
+                router.push('/dashboard'); 
             } else {
-                router.push('/candidate/dashboard'); // Tela inicial do Candidato
+                router.push('/area-candidato'); 
             }
         } catch (err: any) {
             setError(err.message);
