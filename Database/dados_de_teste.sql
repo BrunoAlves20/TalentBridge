@@ -1,79 +1,113 @@
--- ======================================================================
--- SCRIPT DE SEEDS (DADOS DE TESTE) - TALENTBRIDGE
--- Execute este script apenas DEPOIS de ter criado as tabelas.
--- ======================================================================
+USE `talentbridge`;
 
-USE `talentbridge`; 
+-- =========================================================================
+-- 1. USUÁRIOS (2 Recrutadores e 3 Candidatos)
+-- =========================================================================
+INSERT INTO `usuarios` (`id`, `nome`, `email`, `senha_hash`, `tipo_usuario`) VALUES
+(1, 'Ana Clara RH', 'ana.rh@techcorp.com', 'hash_senha_123', 'RECRUTADOR'),
+(2, 'Carlos Recrutador', 'carlos@inovagas.com.br', 'hash_senha_123', 'RECRUTADOR'),
+(3, 'João Dev', 'joao.dev@email.com', 'hash_senha_123', 'CANDIDATO'),
+(4, 'Maria Data', 'maria.dados@email.com', 'hash_senha_123', 'CANDIDATO'),
+(5, 'Pedro Design', 'pedro.uiux@email.com', 'hash_senha_123', 'CANDIDATO');
 
--- 1. Inserindo as Habilidades Base (Dicionário)
--- Isso vai alimentar os filtros na tela do Kauã
-INSERT INTO habilidades (nome) VALUES 
-('Python'), ('Next.js'), ('React'), ('PostgreSQL'), 
-('Java'), ('Linux'), ('Git'), ('Web Scraping');
+-- =========================================================================
+-- 2. PERFIS DOS CANDIDATOS
+-- =========================================================================
+INSERT INTO `perfis_candidatos` (`usuario_id`, `telefone`, `sobre_voce`, `url_curriculo_s3`, `dados_brutos_ia`, `revisao_concluida`) VALUES
+(3, '11999990001', 'Desenvolvedor Full Stack apaixonado por tecnologia e resolução de problemas.', 's3://bucket/cv_joao.pdf', '{"skills": ["React", "Node.js"]}', 1),
+(4, '11999990002', 'Cientista de Dados com foco em Machine Learning e análise preditiva.', 's3://bucket/cv_maria.pdf', '{"skills": ["Python", "SQL"]}', 1),
+(5, '11999990003', 'UX/UI Designer criando experiências memoráveis para os usuários.', 's3://bucket/cv_pedro.pdf', '{"skills": ["Figma", "Photoshop"]}', 0);
 
--- 2. Inserindo Usuários (1 Recrutador e 1 Candidato)
--- Usando IDs fictícios no formato texto para facilitar os testes
-INSERT INTO usuarios (id, nome, email, senha_hash, tipo_usuario) VALUES 
-('recrutador-001', 'Tech Corp RH', 'vagas@techcorp.com', 'hash_qualquer_123', 'RECRUTADOR'),
-('candidato-001', 'Bruno Nogueira', 'bruno@email.com', 'hash_qualquer_123', 'CANDIDATO');
+-- =========================================================================
+-- 3. EXPERIÊNCIAS DOS CANDIDATOS
+-- =========================================================================
+INSERT INTO `experiencias` (`usuario_id`, `empresa`, `cargo`, `data_inicio`, `data_fim`, `descricao`) VALUES
+(3, 'Tech Solutions', 'Desenvolvedor Web Jr', '2020-03-01', '2022-05-30', 'Desenvolvimento de APIs em Node.js e front-end em React.'),
+(3, 'InovaWeb', 'Desenvolvedor Full Stack Pleno', '2022-06-01', NULL, 'Liderança técnica de pequenas equipes e arquitetura de microserviços.'),
+(4, 'Fintech X', 'Analista de Dados', '2019-01-15', '2021-12-20', 'Criação de dashboards em Power BI e queries complexas em SQL.'),
+(4, 'DataCorp', 'Cientista de Dados', '2022-01-10', NULL, 'Modelagem de dados e criação de algoritmos de recomendação.'),
+(5, 'Agência Criativa', 'Web Designer', '2018-05-01', '2021-10-15', 'Criação de interfaces para e-commerces e landing pages.');
 
--- 3. Inserindo o Perfil do Candidato (RF02 / RF04)
--- Simulando que a IA já extraiu os dados e a revisão foi concluída
-INSERT INTO perfis_candidatos (id, usuario_id, telefone, resumo_profissional, url_curriculo_s3, revisao_concluida) VALUES 
-('perfil-001', 'candidato-001', '(11) 99999-9999', 'Desenvolvedor focado em soluções backend e automação. Tenho experiência prática na construção de bots para coleta de dados e manutenção de interfaces web. Atualmente aprofundando conhecimentos em infraestrutura e arquitetura de software.', 'https://s3.aws.com/talentbridge/bruno_cv.pdf', TRUE);
+-- =========================================================================
+-- 4. FORMAÇÕES DOS CANDIDATOS
+-- =========================================================================
+INSERT INTO `formacoes` (`usuario_id`, `instituicao`, `curso`, `tipo`, `data_inicio`, `data_fim`) VALUES
+(3, 'Universidade de São Paulo (USP)', 'Ciência da Computação', 'Bacharelado', '2016-02-01', '2019-12-20'),
+(4, 'Universidade Estadual de Campinas (UNICAMP)', 'Estatística', 'Bacharelado', '2015-03-01', '2018-12-15'),
+(5, 'Faculdade de Belas Artes', 'Design Gráfico', 'Bacharelado', '2017-02-01', '2020-12-10');
 
--- 4. Inserindo Experiências e Formações do Candidato
-INSERT INTO formacoes (usuario_id, instituicao, curso, tipo, data_conclusao) VALUES 
-('candidato-001', 'Faculdade de Tecnologia', 'Análise de Sistemas', 'Graduação', '2027-12-01');
+-- =========================================================================
+-- 5. CURSOS E CERTIFICAÇÕES
+-- =========================================================================
+INSERT INTO `cursos_certificacoes` (`usuario_id`, `nome`, `instituicao`) VALUES
+(3, 'AWS Certified Cloud Practitioner', 'Amazon Web Services'),
+(4, 'Data Science Bootcamp', 'Alura'),
+(5, 'UI/UX Masterclass', 'Udemy');
 
-INSERT INTO experiencias (usuario_id, empresa, cargo, data_inicio, data_fim, descricao) VALUES 
-('candidato-001', 'Tistto', 'Desenvolvedor Júnior', '2025-06-01', NULL, 'Atuação focada no desenvolvimento e manutenção de sistemas web, além de construção de scripts de web scraping e bots em Python para coleta de dados essenciais para o negócio.'),
-('candidato-001', 'Tistto', 'Estagiário de Desenvolvimento', '2024-01-15', '2025-05-30', 'Apoio à equipe de desenvolvimento, atuando em tarefas de front-end, automação de processos internos e estruturação de projetos.');
+-- =========================================================================
+-- 6. IDIOMAS DOS CANDIDATOS
+-- =========================================================================
+INSERT INTO `idiomas` (`usuario_id`, `idioma`, `nivel`) VALUES
+(3, 'Inglês', 'Avançado'),
+(3, 'Espanhol', 'Intermediário'),
+(4, 'Inglês', 'Fluente'),
+(5, 'Inglês', 'Básico');
 
--- 5. Vinculando Habilidades ao Candidato (RF: N:N)
--- Assumindo que os IDs das habilidades inseridas no passo 1 vão de 1 a 8
-INSERT INTO candidato_habilidades (usuario_id, habilidade_id) VALUES 
-('candidato-001', 1), -- Python
-('candidato-001', 5), -- Java
-('candidato-001', 6), -- Linux
-('candidato-001', 7), -- Git
-('candidato-001', 8); -- Web Scraping
+-- =========================================================================
+-- 7. DICIONÁRIO DE HABILIDADES
+-- =========================================================================
+INSERT INTO `habilidades` (`id`, `nome`) VALUES
+(1, 'React'),
+(2, 'Node.js'),
+(3, 'Python'),
+(4, 'SQL'),
+(5, 'Figma'),
+(6, 'Machine Learning'),
+(7, 'AWS'),
+(8, 'Docker'),
+(9, 'UI/UX'),
+(10, 'TypeScript');
 
--- 6. Criando Vagas pelo Recrutador (RF05)
-INSERT INTO vagas (id, recrutador_id, titulo, descricao, status) VALUES 
-('vaga-001', 'recrutador-001', 'Desenvolvedor Backend Python', 'Buscamos um desenvolvedor para criar e manter rotinas de extração de dados e automação.', 'Aberta'),
-('vaga-002', 'recrutador-001', 'Desenvolvedor Fullstack Júnior', 'Oportunidade para atuar com Next.js no front-end e Python no back-end.', 'Aberta');
+-- =========================================================================
+-- 8. VÍNCULO CANDIDATO <-> HABILIDADE
+-- =========================================================================
+INSERT INTO `candidato_habilidades` (`usuario_id`, `habilidade_id`) VALUES
+(3, 1), (3, 2), (3, 7), (3, 8), (3, 10), -- João Dev: React, Node, AWS, Docker, TS
+(4, 3), (4, 4), (4, 6), (4, 7),          -- Maria Data: Python, SQL, ML, AWS
+(5, 5), (5, 9);                          -- Pedro Design: Figma, UI/UX
 
--- 7. Vinculando Habilidades Exigidas nas Vagas (RF06 - Motor de Ranking)
--- Vaga 1 exige Python (peso 5) e Web Scraping (peso 4)
-INSERT INTO vaga_habilidades (vaga_id, habilidade_id, peso) VALUES 
-('vaga-001', 1, 5), 
-('vaga-001', 8, 4);
+-- =========================================================================
+-- 9. VAGAS (Criadas pelos Recrutadores)
+-- =========================================================================
+INSERT INTO `vagas` (`id`, `recrutador_id`, `titulo`, `descricao`, `status`) VALUES
+(1, 1, 'Desenvolvedor Front-end', 'Buscamos um dev experiente em React e TypeScript para compor nosso time.', 'ABERTA'),
+(2, 1, 'Cientista de Dados Sênior', 'Vaga para atuar em projetos de Machine Learning.', 'ABERTA'),
+(3, 2, 'Product Designer', 'Projetar interfaces web e mobile utilizando Figma.', 'ABERTA');
 
--- Vaga 2 exige Next.js (peso 5) e Python (peso 3)
-INSERT INTO vaga_habilidades (vaga_id, habilidade_id, peso) VALUES 
-('vaga-002', 2, 5), 
-('vaga-002', 1, 3);
+-- =========================================================================
+-- 10. HABILIDADES EXIGIDAS PARA AS VAGAS
+-- =========================================================================
+INSERT INTO `vaga_habilidades` (`vaga_id`, `habilidade_id`, `peso`) VALUES
+(1, 1, 5),  -- Vaga Front: React (peso 5)
+(1, 10, 4), -- Vaga Front: TypeScript (peso 4)
+(2, 3, 5),  -- Vaga Dados: Python (peso 5)
+(2, 4, 3),  -- Vaga Dados: SQL (peso 3)
+(2, 6, 5),  -- Vaga Dados: ML (peso 5)
+(3, 5, 5),  -- Vaga Design: Figma (peso 5)
+(3, 9, 4);  -- Vaga Design: UI/UX (peso 4)
 
--- 8. Simulando uma Candidatura (RF05 / RF06)
--- O Candidato se inscreveu na Vaga 1 e o algoritmo já calculou um match alto
-INSERT INTO candidaturas (id, usuario_id, vaga_id, status_pipeline, score_match) VALUES 
-('cand-001', 'candidato-001', 'vaga-001', 'Entrevista', 92.50);
+-- =========================================================================
+-- 11. CANDIDATURAS, PIPELINE E TRIAGEM
+-- =========================================================================
+INSERT INTO `candidaturas` (`id`, `usuario_id`, `vaga_id`, `status_pipeline`, `score_match`) VALUES
+(1, 3, 1, 'ENTREVISTA', 92.50),  -- João se candidatou para Dev Front
+(2, 4, 1, 'REJEITADO', 15.00),   -- Maria se candidatou errado para Front-end
+(3, 4, 2, 'TRIAGEM', 95.00),     -- Maria se candidatou para Cientista de Dados
+(4, 5, 3, 'OFERTA', 88.00);      -- Pedro se candidatou para UI/UX
 
--- 9. Simulando a Entrevista com IA (RF07)
--- Isso vai ajudar o Leonardo a testar a tela do simulador
-INSERT INTO entrevistas_ia (id, candidatura_id, status, transcricao_chat, feedback_geral, pontuacao_final) VALUES 
-('entrevista-001', 'cand-001', 'Concluída', 'IA: Como você lidaria com um site que bloqueia requisições de raspagem de dados?\nCandidato: Eu implementaria rotação de IPs, headers dinâmicos e, se necessário, usaria bibliotecas como Selenium para simular navegação humana.', 'O candidato demonstrou excelente conhecimento prático em resolução de problemas técnicos e automação. Comunicação clara e objetiva.', 88.00);
-
-
-
-
--- Fazer Uma consulta depois que roda o teste acima 
-SELECT 
-    v.titulo AS 'Vaga', 
-    u.nome AS 'Candidato', 
-    c.score_match AS 'Match (%)', 
-    c.status_pipeline AS 'Fase'
-FROM candidaturas c
-JOIN vagas v ON c.vaga_id = v.id
-JOIN usuarios u ON c.usuario_id = u.id;
+-- =========================================================================
+-- 12. SIMULADOR DE ENTREVISTA (IA)
+-- =========================================================================
+INSERT INTO `entrevistas_ia` (`candidatura_id`, `status`, `transcricao_chat`, `feedback_geral`, `pontuacao_final`) VALUES
+(1, 'CONCLUIDA', 'IA: Como você gerencia estado no React? Candidato: Uso Context API e Redux...', 'Iniciativa excelente, boa clareza nas respostas técnicas.', 8.5),
+(4, 'CONCLUIDA', 'IA: Qual processo de discovery você utiliza? Candidato: Geralmente começo por pesquisas de usuário...', 'Ótima base teórica de design thinking.', 9.0);
