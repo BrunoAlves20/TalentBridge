@@ -38,13 +38,22 @@ export function LoginView() {
 
       const user = await authService.login(email, password);
 
+      // Salva os dados no storage
       localStorage.setItem("@TalentBridge:user", JSON.stringify(user));
+      localStorage.setItem("usuario_id", user.id.toString()); // Fundamental para as chamadas da API!
 
-      router.push(
-        user.role === "admin"
-          ? "/recruiter/dashboard"
-          : "/candidate/dashboard"
-      );
+      // REDIRECIONAMENTO INTELIGENTE COM GUARDA DE ROTAS
+      if (user.role === "RECRUTADOR") {
+        router.push("/recruiter/dashboard");
+      } else {
+        // Se for candidato, checa se ele já preencheu o perfil
+        if (user.onboarding_completo) {
+          router.push("/candidate/dashboard"); // Vai para a home principal
+        } else {
+          alert("Por favor, finalize a montagem do seu perfil para acessar a plataforma!");
+          router.push("/candidate/onboarding"); // Fica preso no onboarding
+        }
+      }
 
     } catch (err: any) {
 

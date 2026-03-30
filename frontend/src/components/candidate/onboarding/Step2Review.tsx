@@ -193,6 +193,16 @@ export function Step2Review({ method, onNext, onBack, initialData }: Step2Review
       setShowError(true);
       return;
     }
+    // --- NOVA VALIDAÇÃO DE DATAS: Ano Fim não pode ser menor que Ano Início ---
+    for (const ed of formData.education) {
+      if (!isEducationTotallyEmpty(ed)) {
+        if (parseInt(ed.endYear) < parseInt(ed.startYear)) {
+          setErrorMessage(`Atenção: O ano de conclusão (${ed.endYear}) não pode ser menor que o ano de início (${ed.startYear}) no curso de ${ed.course || 'Formação'}.`);
+          setShowError(true);
+          return;
+        }
+      }
+    }
 
     setShowError(false);
     onNext(formData);

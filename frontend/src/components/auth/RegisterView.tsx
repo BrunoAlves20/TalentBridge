@@ -24,7 +24,7 @@ export function RegisterView() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const [role, setRole] = useState<UserRole>("user");
+  const [role, setRole] = useState<UserRole>("CANDIDATO");
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -46,21 +46,33 @@ export function RegisterView() {
     setIsLoading(true);
 
     try {
-
-      const user = await authService.register(
+      // 1. Recebe a resposta do backend (que contém apenas { mensagem, id })
+      const response = await authService.register(
         name,
         email,
         password,
         role
       );
 
-      localStorage.setItem("@TalentBridge:user", JSON.stringify(user));
+      // 2. Monta o objeto completo localmente para não quebrar o padrão que o frontend espera
+      const userData = {
+        id: response.id,
+        name: name,
+        email: email,
+        role: role
+      };
 
-      router.push(
-        user.role === "admin"
-          ? "/recruiter/dashboard"
-          : "/candidate/dashboard"
-      );
+      // 3. Salva no Storage
+      localStorage.setItem("@TalentBridge:user", JSON.stringify(userData));
+      localStorage.setItem("usuario_id", response.id.toString());
+
+      // 4. Correção do Bug de Redirecionamento: Usamos o estado 'role' local em vez do retorno da API!
+      if (role === "RECRUTADOR") {
+        router.push("/recruiter/dashboard");
+      } else {
+        // Redireciona o candidato para a tela correta de Onboarding
+        router.push("/candidate/onboarding");
+      }
 
     } catch (err: any) {
 
@@ -94,9 +106,9 @@ export function RegisterView() {
 
           <button
             type="button"
-            onClick={() => setRole("user")}
+            onClick={() => setRole("CANDIDATO")}
             className={`flex flex-col items-center p-5 border rounded-lg ${
-              role === "user"
+              role === "CANDIDATO"
                 ? "border-primary bg-primary/5 text-primary"
                 : "border-border"
             }`}
@@ -107,9 +119,9 @@ export function RegisterView() {
 
           <button
             type="button"
-            onClick={() => setRole("admin")}
+            onClick={() => setRole("RECRUTADOR")}
             className={`flex flex-col items-center p-5 border rounded-lg ${
-              role === "admin"
+              role === "RECRUTADOR"
                 ? "border-primary bg-primary/5 text-primary"
                 : "border-border"
             }`}

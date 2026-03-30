@@ -217,6 +217,21 @@ export function Step3Skills({ method, onBack, onComplete, initialData }: Step3Sk
       setShowError(true);
       return;
     }
+    // --- NOVA VALIDAÇÃO DE DATAS: Mês/Ano Fim não pode ser menor que Mês/Ano Início ---
+    for (const exp of formData.experience) {
+      if (!isExperienceTotallyEmpty(exp) && !exp.isCurrent) {
+        // Multiplica o ano por 12 e soma o mês para gerar um valor absoluto
+        const startValue = parseInt(exp.startYear) * 12 + parseInt(exp.startMonth);
+        const endValue = parseInt(exp.endYear) * 12 + parseInt(exp.endMonth);
+        
+        if (endValue < startValue) {
+          setErrorMessage(`Atenção: A data de fim não pode ser menor que a data de início na experiência da empresa ${exp.company || 'informada'}.`);
+          setShowError(true);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          return;
+        }
+      }
+    }
 
     setShowError(false);
     onComplete(formData);

@@ -2,12 +2,14 @@
 
 import { useState, useRef } from "react";
 import { UploadCloud, FileEdit, Sparkles, Loader2, File, CheckCircle2 } from "lucide-react";
+import { useOnboarding } from "@/contexts/OnboardingContext"; // Importação do contexto adicionada
 
 interface Step1ChoiceProps {
   onSelectMethod: (method: "ai" | "manual") => void;
 }
 
 export function Step1Choice({ onSelectMethod }: Step1ChoiceProps) {
+  const { setStep2Data, setStep3Data } = useOnboarding(); // Pegando as funções de salvar dados
   const [selectedOption, setSelectedOption] = useState<"ai" | "manual" | null>(null);
   const [uploadState, setUploadState] = useState<"idle" | "uploading" | "extracting" | "done">("idle");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -37,23 +39,87 @@ export function Step1Choice({ onSelectMethod }: Step1ChoiceProps) {
     startExtractionSimulation(file);
   };
 
-  const startExtractionSimulation = (file: File) => {
+  // --- A FUNÇÃO INTEGRADA COM O BACKEND (FASTAPI) ---
+  const startExtractionSimulation = async (file: File) => {
     setUploadState("uploading");
     
-    // Simula o tempo de upload do arquivo
-    setTimeout(() => {
+    const usuarioId = localStorage.getItem("usuario_id");
+    if (!usuarioId) {
+      setError("Erro: Usuário não identificado. Faça login novamente.");
+      setUploadState("idle");
+      return;
+    }
+
+    try {
+      // 1. Prepara o envio do Arquivo
+      const formData = new FormData();
+      formData.append("curriculo", file);
+      formData.append("usuario_id", usuarioId);
+
+      // Simula um tempinho de "Upload" para a barra de progresso rodar
+      await new Promise(resolve => setTimeout(resolve, 800));
       setUploadState("extracting");
+
+      // 2. Dispara o arquivo para o Python
+      const response = await fetch("http://127.0.0.1:8000/candidatos/extrair-cv", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Erro ao processar o currículo.");
+      }
+
+      // 3. Recebe a resposta mágica da IA
+      const responseData = await response.json();
+      const extracted = responseData.dados;
+
+      // Mantém a animação de "Extraindo" rodando um pouco para dar uma sensação premium
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Recupera o e-mail original do usuário logado para garantir que não seja sobrescrito
+      const localUserRaw = localStorage.getItem("@TalentBridge:user");
+      let originalEmail = "";
+      if (localUserRaw) {
+        const user = JSON.parse(localUserRaw);
+        originalEmail = user.email;
+      }
+
+      // 4. Normaliza os dados da IA garantindo id único em cada item
+      //    (o Gemini não retorna id, mas o Step2/Step3 usa key={item.id} no map)
+      const normalizedEducation = (extracted.education ?? []).map(
+        (ed: any, i: number) => ({ ...ed, id: ed.id ?? Date.now() + i })
+      );
+      const normalizedExperience = (extracted.experience ?? []).map(
+        (exp: any, i: number) => ({ ...exp, id: exp.id ?? Date.now() + 1000 + i })
+      );
+
+      setStep2Data({
+        personal: {
+          ...extracted.personal,
+          email: originalEmail || extracted.personal.email // Prioriza o e-mail do cadastro
+        },
+        education: normalizedEducation,
+      });
+      setStep3Data({
+        experience: normalizedExperience,
+        stacks: extracted.stacks ?? [],
+        softSkills: extracted.softSkills ?? [],
+      });
+
+      // 5. Sucesso Visual e Redirecionamento
+      setUploadState("done");
       
-      // Simula o tempo da IA processando o currículo
       setTimeout(() => {
-        setUploadState("done");
-        
-        // Transição suave para o próximo passo
-        setTimeout(() => {
-          onSelectMethod("ai");
-        }, 800);
-      }, 2500); 
-    }, 1000);
+        onSelectMethod("ai");
+      }, 1200);
+
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Erro de conexão com o servidor. Tente novamente.");
+      setUploadState("idle");
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -235,4 +301,3 @@ export function Step1Choice({ onSelectMethod }: Step1ChoiceProps) {
     </div>
   );
 }
-
