@@ -15,11 +15,11 @@ def get_db_connection():
     """
     try:
         connection = connect(
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME"),
-            port=os.getenv("DB_PORT"),
+            host=os.getenv("DB_HOST", "localhost"),
+            user=os.getenv("DB_USER", "root"),
+            password=os.getenv("DB_PASSWORD", ""),
+            database=os.getenv("DB_NAME", "talentbridge"),
+            port=int(os.getenv("DB_PORT", 3306)),
         )
         if connection.is_connected():
             logger.info("Conexão com o banco de dados estabelecida com sucesso.")
