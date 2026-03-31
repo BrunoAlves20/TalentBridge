@@ -36,36 +36,33 @@ Currículo:
 {texto_curriculo}
 """
 
+_MARKDOWN_JSON_RE = re.compile(r"```json\n?|```\n?")
+
 
 def extrair_dados_curriculo_via_gemini(texto_curriculo: str) -> dict:
     """
     Envia o texto de um currículo para o Gemini e retorna um dicionário
     com os dados estruturados extraídos.
     """
-    _api_key = os.getenv("GEMINI_API_KEY")
-    if not _api_key:
-        logger.warning("GEMINI_API_KEY não encontrada nas variáveis de ambiente.")
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
         raise HTTPException(status_code=500, detail="Chave da API do Gemini não configurada.")
 
     prompt = _PROMPT_TEMPLATE.format(texto_curriculo=texto_curriculo)
 
     try:
-        client = genai.Client(api_key=_api_key)
-        resposta = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-        )
+        client = genai.Client(api_key=api_key)
+        resposta = client.models.generate_content(model=GEMINI_MODEL, contents=prompt)
         texto_resposta = resposta.text
     except Exception as e:
         logger.error(f"Erro na chamada à API do Gemini: {e}")
-        raise HTTPException(status_code=500, detail=f"Erro ao comunicar com a IA: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro ao comunicar com a IA: {e}")
 
-    # Limpa blocos de markdown que o Gemini eventualmente adiciona (```json ... ```)
-    texto_limpo = re.sub(r"```json\n?", "", texto_resposta)
-    texto_limpo = re.sub(r"```\n?", "", texto_limpo).strip()
+    # Remove blocos de markdown que o Gemini eventualmente adiciona (```json ... ```)
+    texto_limpo = _MARKDOWN_JSON_RE.sub("", texto_resposta).strip()
 
     try:
-        dados_extraidos = json.loads(texto_limpo)
+        dados = json.loads(texto_limpo)
     except json.JSONDecodeError:
         logger.error(f"JSON inválido retornado pelo Gemini: {texto_limpo}")
         raise HTTPException(
@@ -74,4 +71,4 @@ def extrair_dados_curriculo_via_gemini(texto_curriculo: str) -> dict:
         )
 
     logger.info("Dados do currículo extraídos com sucesso via Gemini.")
-    return dados_extraidos
+    return dados
