@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import { Step2Data } from "@/components/candidate/onboarding/Step2Review";
 import { Step3Data } from "@/components/candidate/onboarding/Step3Skills";
 
@@ -17,6 +18,7 @@ interface OnboardingContextType {
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
 const STORAGE_KEY = "@TalentBridge:OnboardingData";
+const EXPIRATION_MS = 24 * 60 * 60 * 1000; // 24 horas
 
 interface StoredData {
   extractionMethod: "ai" | "manual" | null;
@@ -26,30 +28,25 @@ interface StoredData {
 }
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
-  const [extractionMethod, setExtractionMethodState] = useState<"ai" | "manual" | null>(null);
-  const [step2Data, setStep2DataState] = useState<Step2Data | null>(null);
-  const [step3Data, setStep3DataState] = useState<Step3Data | null>(null);
+  const [extractionMethod, setExtractionMethod] = useState<"ai" | "manual" | null>(null);
+  const [step2Data, setStep2Data] = useState<Step2Data | null>(null);
+  const [step3Data, setStep3Data] = useState<Step3Data | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Carrega dados iniciais do sessionStorage ou localStorage no mount
+  // Carrega dados do storage na montagem
   useEffect(() => {
     try {
-      // Prioridade para Session Storage (recém fechou e abriu a mesma aba do fluxo)
-      const sessionData = sessionStorage.getItem(STORAGE_KEY);
-      const localData = localStorage.getItem(STORAGE_KEY);
-      
-      const storedRaw = sessionData || localData;
-      
+      const storedRaw =
+        sessionStorage.getItem(STORAGE_KEY) || localStorage.getItem(STORAGE_KEY);
+
       if (storedRaw) {
         const parsed: StoredData = JSON.parse(storedRaw);
-        
-        // Verifica se os dados tem menos de 24h
-        const isExpired = Date.now() - parsed.timestamp > 24 * 60 * 60 * 1000;
-        
+        const isExpired = Date.now() - parsed.timestamp > EXPIRATION_MS;
+
         if (!isExpired) {
-          if (parsed.extractionMethod) setExtractionMethodState(parsed.extractionMethod);
-          if (parsed.step2Data) setStep2DataState(parsed.step2Data);
-          if (parsed.step3Data) setStep3DataState(parsed.step3Data);
+          if (parsed.extractionMethod) setExtractionMethod(parsed.extractionMethod);
+          if (parsed.step2Data) setStep2Data(parsed.step2Data);
+          if (parsed.step3Data) setStep3Data(parsed.step3Data);
         } else {
           localStorage.removeItem(STORAGE_KEY);
           sessionStorage.removeItem(STORAGE_KEY);
@@ -62,19 +59,18 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     }
   }, []);
 
-  // Salva nos storages sempre que houver mudanças relevantes
+  // Persiste no storage sempre que os dados mudarem
   useEffect(() => {
     if (!isInitialized) return;
 
     try {
-      const dataToStore: StoredData = {
+      const jsonStr = JSON.stringify({
         extractionMethod,
         step2Data,
         step3Data,
-        timestamp: Date.now()
-      };
-      
-      const jsonStr = JSON.stringify(dataToStore);
+        timestamp: Date.now(),
+      } satisfies StoredData);
+
       sessionStorage.setItem(STORAGE_KEY, jsonStr);
       localStorage.setItem(STORAGE_KEY, jsonStr);
     } catch (e) {
@@ -82,17 +78,21 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     }
   }, [extractionMethod, step2Data, step3Data, isInitialized]);
 
-  const setExtractionMethod = (method: "ai" | "manual" | null) => setExtractionMethodState(method);
-  const setStep2Data = (data: Step2Data | null) => setStep2DataState(data);
-  const setStep3Data = (data: Step3Data | null) => setStep3DataState(data);
-
   const clearOnboardingData = () => {
-    setExtractionMethodState(null);
-    setStep2DataState(null);
-    setStep3DataState(null);
+    setExtractionMethod(null);
+    setStep2Data(null);
+    setStep3Data(null);
     sessionStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(STORAGE_KEY);
   };
+
+  if (!isInitialized) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <OnboardingContext.Provider
@@ -106,7 +106,7 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
         clearOnboardingData,
       }}
     >
-      {isInitialized ? children : null}
+      {children}
     </OnboardingContext.Provider>
   );
 }

@@ -10,7 +10,6 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid
 } from "recharts";
-import { Navbar } from "@/components/layout/Navbar";
 
 // --- Tipagens ---
 interface Job {
@@ -136,7 +135,6 @@ export default function RecruiterDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-slate-200 antialiased transition-colors">
-      <Navbar />
 
       <main className="max-w-7xl mx-auto px-6 py-12">
         <header className="mb-12">

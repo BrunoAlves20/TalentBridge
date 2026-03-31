@@ -1,4 +1,17 @@
-venv/
+# Env
 .env
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Uploads de usuários — nunca versionar dados pessoais
+uploads/*
+!uploads/.gitkeep
+
+# Virtual environment
+.venv/
+venv/
+env/

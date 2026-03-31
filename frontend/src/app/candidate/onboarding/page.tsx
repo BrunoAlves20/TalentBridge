@@ -10,14 +10,20 @@ export default function CandidateOnboardingIndexPage() {
   const { extractionMethod, step2Data } = useOnboarding();
 
   useEffect(() => {
-    // Redirecionamento inteligente baseado no que já existe no Context
+    // Sempre começa no passo1 se o método não foi escolhido ainda.
+    // Isso evita que dados residuais no storage pulem o passo1 para
+    // um usuário que nunca completou o onboarding.
     if (!extractionMethod) {
       router.replace("/candidate/onboarding/passo1");
-    } else if (extractionMethod && !step2Data) {
-      router.replace("/candidate/onboarding/passo2");
-    } else {
-      router.replace("/candidate/onboarding/passo3");
+      return;
     }
+    // Se escolheu o método mas ainda não revisou os dados → passo2
+    if (!step2Data) {
+      router.replace("/candidate/onboarding/passo2");
+      return;
+    }
+    // Dados do passo2 existem → passo3
+    router.replace("/candidate/onboarding/passo3");
   }, [extractionMethod, step2Data, router]);
 
   // Loading state enquanto a verificação acontece

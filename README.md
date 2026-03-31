@@ -1,38 +1,107 @@
-# TalentBridge
+# 🚀 TalentBridge - Plataforma de Recrutamento Inteligente
 
-O **TalentBridge** é uma plataforma inovadora desenvolvida para solucionar as dores do mercado relacionadas ao recrutamento lento. Através do uso de Inteligência Artificial e automação inteligente, o sistema conecta empresas e candidatos de forma ágil, modernizando o fluxo de triagem, extração de dados e até mesmo a condução de simulações de entrevistas.
-
----
-
-## 🚀 Tecnologias Utilizadas
-
-A stack tecnológica do projeto foi dividida estrategicamente para garantir performance na interface e robustez no processamento de IA:
-
-* **Frontend (Interface):** Desenvolvido utilizando a biblioteca **React** combinada ao framework **Next.js** e tipagem estática com **TypeScript**. Essa união foi escolhida para a criação de componentes de interface dinâmicos, seguros e de alta fidelidade, como a Dashboard do Candidato com filtros de busca avançados e a complexa renderização da sala de entrevista da IA, que simula ondas de áudio em tempo real.
-* **Backend & Processamento:** Construído em **Python**. A linguagem fornece a base estrutural para o servidor, sendo diretamente responsável pelo recebimento, tratamento de upload de arquivos PDF e extração de dados de currículos. 
-* **Inteligência Artificial:** Para garantir automação de ponta, o sistema integra tecnologias avançadas de **OCR** (Reconhecimento Ótico de Caracteres) e **LLMs** (Modelos de Linguagem Grande) para a leitura, extração e preenchimento automático inteligente das informações dos candidatos.
+O **TalentBridge** é uma aplicação moderna que conecta candidatos e recrutadores através de uma interface intuitiva e processamento inteligente de dados. O projeto utiliza **FastAPI** no backend, **Next.js** no frontend e **MySQL** como banco de dados.
 
 ---
 
-## 🗄️ Arquitetura do Banco de Dados
+## 🛠️ Tecnologias Utilizadas
 
-O armazenamento e relacionamento das informações da plataforma são garantidos por uma estrutura relacional forte:
-
-* **SGBD**: O sistema utiliza o banco de dados **MySQL**.
-* **Modelagem (DER)**: A modelagem foi desenhada através de um Diagrama de Entidade-Relacionamento, com foco principal nas tabelas estruturais de Usuários e Vagas.
-* **Relacionamentos**: A arquitetura suporta estruturas de alta complexidade, contendo mapeamentos de relações muitos-para-muitos, como as interações e cruzamentos de dados entre as tabelas de Habilidades e Candidatos.
+| Camada | Tecnologia |
+| :--- | :--- |
+| **Frontend** | Next.js 15+, TypeScript, TailwindCSS, Lucide-React |
+| **Backend** | Python 3.11+, FastAPI, PyPDF2, Google Gemini API |
+| **Banco de Dados** | MySQL 8.0+ |
 
 ---
 
-## ✨ Funcionalidades Principais
+## 📋 Pré-requisitos
 
-O sistema conta com um backlog priorizado para atender as principais necessidades de recrutadores e candidatos:
+Antes de começar, certifique-se de ter instalado em sua máquina:
+*   [Node.js](https://nodejs.org/) (v18 ou superior)
+*   [Python](https://www.python.org/) (v3.11 ou superior)
+*   [MySQL Server](https://www.mysql.com/) ativo e rodando
 
-* **Login e Perfis**: Sistema de cadastro seguro com fluxos separados para perfis de Candidatos e Recrutadores.
-* **Extração Inteligente de CV**: Upload de currículos em formato PDF com extração automática de dados (Dados Pessoais, Experiências, Habilidades) impulsionada por IA.
-* **Motor de Ranking (Triagem)**: Algoritmo interno que avalia e pontua candidatos com base no "match" entre o perfil do usuário e os requisitos específicos das vagas cadastradas.
-* **Simulador de Entrevista com IA**: Ambiente de chat e áudio para a realização de perguntas técnicas e comportamentais em tempo real.
-* **Dashboard do Recrutador**: Interface consolidada que permite a visão de vagas ativas e gestão completa do pipeline de candidatos.
-* **Relatório Pós-Entrevista e Feedback**: Análise gerada por Inteligência Artificial indicando clareza e confiança, além de apontar pontos fortes e de melhoria após as simulações.
+---
 
+## 📂 Configuração do Banco de Dados
 
+1.  Abra o seu cliente MySQL (MySQL Workbench, DBeaver ou terminal).
+2.  Crie um novo banco de dados chamado `talentbridge`.
+3.  Importe o arquivo SQL localizado em: `/database/Database/db.sql`.
+4.  Certifique-se de que as credenciais no backend coincidam com as do seu banco local.
+
+---
+
+## ⚙️ Passo a Passo: Backend (FastAPI)
+
+Abra um terminal no VS Code e siga os comandos abaixo:
+
+1.  **Navegue até a pasta do backend:**
+    ```bash
+    cd backend
+    ```
+
+2.  **Crie um ambiente virtual (recomendado):**
+    ```bash
+    python -m venv venv
+    ```
+
+3.  **Ative o ambiente virtual:**
+    *   Windows: venv\Scripts\activate
+    *   Linux/Mac: `source venv/bin/activate`
+
+4.  **Instale as dependências:**
+    ```bash
+    pip install fastapi uvicorn mysql-connector-python bcrypt python-dotenv google-genai PyPDF2 python-multipart "pydantic[email]"
+    ```
+
+5.  **Configure as variáveis de ambiente:**
+    Crie um arquivo `.env` na raiz da pasta `backend` com as seguintes chaves:
+    ```env
+    DB_HOST=localhost
+    DB_USER=seu_usuario
+    DB_PASSWORD=sua_senha
+    DB_NAME=talentbridge
+    GEMINI_API_KEY=sua_chave_api_aqui
+    ```
+
+6.  **Inicie o servidor:**
+    ```bash
+    uvicorn main:app --reload
+    ```
+    *O backend estará rodando em: `http://127.0.0.1:8000`*
+
+---
+
+## 💻 Passo a Passo: Frontend (Next.js)
+
+Abra um **segundo terminal** no VS Code e siga os comandos abaixo:
+
+1.  **Navegue até a pasta do frontend:**
+    ```bash
+    cd frontend
+    ```
+
+2.  **Instale as dependências do Node:**
+    ```bash
+    npm install
+    ```
+
+3.  **Inicie o servidor de desenvolvimento:**
+    ```bash
+    npm run dev
+    ```
+    *O frontend estará acessível em: `http://localhost:3000`*
+
+---
+
+## 🔍 Estrutura de Pastas
+
+*   `/backend`: API robusta com FastAPI, rotas de autenticação e serviços de IA.
+*   `/frontend`: Aplicação Next.js com áreas separadas para candidatos e recrutadores.
+*   `/database`: Scripts SQL para inicialização do banco de dados.
+*   `/docs`: Documentação técnica e roteiros de integração.
+
+---
+
+**Desenvolvido com foco em escalabilidade e experiência do usuário.**
