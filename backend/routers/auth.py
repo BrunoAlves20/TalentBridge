@@ -116,11 +116,12 @@ def esqueceu_senha(dados: EsqueceuSenhaRequest):
 
     cursor = conn.cursor(dictionary=True)
     try:
-        # Verifica se o e-mail existe
+        # Verifica se o e-mail existe na base de dados (Requisito 2 garantido aqui)
         cursor.execute("SELECT id FROM usuarios WHERE email = %s", (dados.email,))
         usuario = cursor.fetchone()
         if not usuario:
-            # Por segurança retornamos sucesso mesmo se o e-mail não existir
+            # Por segurança retornamos sucesso para evitar vazamento de dados de quais emails existem.
+            # Como o utilizador não existe, NÃO geramos código nem imprimimos nada no console.
             return {"mensagem": "Se este e-mail estiver cadastrado, você receberá um código."}
 
         # Remove códigos antigos do mesmo usuário
@@ -137,9 +138,9 @@ def esqueceu_senha(dados: EsqueceuSenhaRequest):
         )
         conn.commit()
 
-        # Em produção aqui seria disparado o envio de e-mail
+        # O email existe, então em produção seria disparado o envio de e-mail.
         # Para teste, logamos no console:
-        print(f"[TESTE] Código de redefinição para {dados.email}: {CODIGO_TESTE}")
+        print(f"[TESTE] O e-mail existe na BD. Código de redefinição para {dados.email}: {CODIGO_TESTE}")
 
         return {"mensagem": "Se este e-mail estiver cadastrado, você receberá um código."}
 

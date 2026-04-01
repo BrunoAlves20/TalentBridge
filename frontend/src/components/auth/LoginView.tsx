@@ -33,6 +33,11 @@ export function LoginView({ onForgotPassword }: LoginViewProps) {
     try {
       const user = await authService.login(email, password);
 
+      // [PREVENÇÃO DE ERRO] Limpa os dados do Onboarding em cache para garantir que 
+      // este novo utilizador não aceda ao currículo não guardado de um utilizador anterior.
+      localStorage.removeItem("@TalentBridge:OnboardingData");
+      sessionStorage.removeItem("@TalentBridge:OnboardingData");
+
       localStorage.setItem("@TalentBridge:user", JSON.stringify(user));
       localStorage.setItem("usuario_id", user.id.toString());
 
