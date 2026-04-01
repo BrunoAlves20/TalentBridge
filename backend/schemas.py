@@ -63,7 +63,21 @@ class OnboardingPayload(BaseModel):
     softSkills: List[str]
 
 
-# ── Perfil ────────────────────────────────────────────────────────────────────
+# ── Redefinição de Senha ──────────────────────────────────────────────────────
+
+class EsqueceuSenhaRequest(BaseModel):
+    email: EmailStr
+
+
+class VerificarCodigoRequest(BaseModel):
+    email: EmailStr
+    codigo: str
+
+
+class RedefinirSenhaRequest(BaseModel):
+    email: EmailStr
+    codigo: str
+    nova_senha: str
 
 class PerfilUpdate(BaseModel):
     usuario_id: int

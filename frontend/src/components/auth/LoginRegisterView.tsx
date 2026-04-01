@@ -5,8 +5,9 @@ import { motion } from "framer-motion";
 
 import { LoginView } from "./LoginView";
 import { RegisterView } from "./RegisterView";
+import { ForgotPasswordView } from "./ForgotPasswordView";
 
-type Mode = "login" | "register";
+type Mode = "login" | "register" | "forgot-password";
 
 export function LoginRegisterView({ initialMode = "login" }: { initialMode?: Mode }) {
 
@@ -27,74 +28,80 @@ export function LoginRegisterView({ initialMode = "login" }: { initialMode?: Mod
 
       <div className="relative w-[1100px] h-[720px]">
 
-        {/* PAINEL ANIMADO */}
+        {/* PAINEL ANIMADO — oculto na tela de recuperação de senha */}
 
-        <motion.div
-          layout
-          transition={{ duration: 0.6, ease: "easeInOut" }}
-          className={`
-          absolute top-0 h-full w-[60%]
-          rounded-2xl shadow-2xl
-          flex flex-col justify-center items-center
-          text-white text-center p-14
-          bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600
-          shadow-[0_0_80px_rgba(99,102,241,0.35)]
-          ${mode === "login" ? "right-0" : "left-0"}
-          `}
-        >
+        {mode !== "forgot-password" && (
+          <motion.div
+            layout
+            transition={{ duration: 0.6, ease: "easeInOut" }}
+            className={`
+            absolute top-0 h-full w-[60%]
+            rounded-2xl shadow-2xl
+            flex flex-col justify-center items-center
+            text-white text-center p-14
+            bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600
+            shadow-[0_0_80px_rgba(99,102,241,0.35)]
+            ${mode === "login" ? "right-0" : "left-0"}
+            `}
+          >
 
-          {mode === "login" ? (
+            {mode === "login" ? (
 
-            <div>
+              <div>
 
-              <h1 className="text-5xl font-bold mb-4">
-                BEM-VINDO!
-              </h1>
+                <h1 className="text-5xl font-bold mb-4">
+                  BEM-VINDO!
+                </h1>
 
-              <p className="opacity-90 mb-8 max-w-sm">
-                Entre com seus dados para acessar a plataforma
-              </p>
+                <p className="opacity-90 mb-8 max-w-sm">
+                  Entre com seus dados para acessar a plataforma
+                </p>
 
-              <button
-                onClick={toggleMode}
-                className="px-8 py-3 bg-white/10 backdrop-blur border border-white/20 text-white rounded-md font-semibold hover:bg-white/20 transition"
-              >
-                CRIAR CONTA
-              </button>
+                <button
+                  onClick={toggleMode}
+                  className="px-8 py-3 bg-white/10 backdrop-blur border border-white/20 text-white rounded-md font-semibold hover:bg-white/20 transition"
+                >
+                  CRIAR CONTA
+                </button>
 
-            </div>
+              </div>
 
-          ) : (
+            ) : (
 
-            <div>
+              <div>
 
-              <h1 className="text-5xl font-bold mb-4">
-                Bem-vindo!
-              </h1>
+                <h1 className="text-5xl font-bold mb-4">
+                  Bem-vindo!
+                </h1>
 
-              <p className="opacity-90 mb-8 max-w-sm">
-                Já possui uma conta? Faça login para acessar.
-              </p>
+                <p className="opacity-90 mb-8 max-w-sm">
+                  Já possui uma conta? Faça login para acessar.
+                </p>
 
-              <button
-                onClick={toggleMode}
-                className="px-8 py-3 bg-white/10 backdrop-blur border border-white/20 text-white rounded-md font-semibold hover:bg-white/20 transition"
-              >
-                Fazer Login
-              </button>
+                <button
+                  onClick={toggleMode}
+                  className="px-8 py-3 bg-white/10 backdrop-blur border border-white/20 text-white rounded-md font-semibold hover:bg-white/20 transition"
+                >
+                  Fazer Login
+                </button>
 
-            </div>
+              </div>
 
-          )}
+            )}
 
-        </motion.div>
+          </motion.div>
+        )}
 
         {/* FORMULÁRIOS */}
 
-        {mode === "login" ? (
-          <LoginView />
-        ) : (
+        {mode === "login" && (
+          <LoginView onForgotPassword={() => setMode("forgot-password")} />
+        )}
+        {mode === "register" && (
           <RegisterView />
+        )}
+        {mode === "forgot-password" && (
+          <ForgotPasswordView onBack={() => setMode("login")} />
         )}
 
       </div>

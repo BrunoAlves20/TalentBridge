@@ -62,15 +62,19 @@ export function RegisterView() {
         role: role
       };
 
-      // 3. Salva no Storage
+      // 3. [CORREÇÃO DO BUG] Limpa dados de onboarding de sessões anteriores 
+      // antes de gravar o novo utilizador, garantindo um registo "limpo".
+      localStorage.removeItem("@TalentBridge:OnboardingData");
+      sessionStorage.removeItem("@TalentBridge:OnboardingData");
+
+      // 4. Salva no Storage o novo utilizador
       localStorage.setItem("@TalentBridge:user", JSON.stringify(userData));
       localStorage.setItem("usuario_id", response.id.toString());
 
-      // 4. Correção do Bug de Redirecionamento: Usamos o estado 'role' local em vez do retorno da API!
+      // 5. Redirecionamento correto conforme a role
       if (role === "RECRUTADOR") {
         router.push("/recruiter/dashboard");
       } else {
-        // Redireciona o candidato para a tela correta de Onboarding
         router.push("/candidate/onboarding");
       }
 
