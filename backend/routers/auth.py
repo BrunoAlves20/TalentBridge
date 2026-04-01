@@ -1,7 +1,8 @@
 import bcrypt
+from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException
 from database import get_db_connection
-from schemas import UsuarioCreate, UsuarioLogin
+from schemas import UsuarioCreate, UsuarioLogin, EsqueceuSenhaRequest, VerificarCodigoRequest, RedefinirSenhaRequest
 
 router = APIRouter(
     prefix="/usuarios",
@@ -88,6 +89,163 @@ def login_usuario(dados: UsuarioLogin):
 
     except HTTPException:
         raise
+    finally:
+        cursor.close()
+        conn.close()
+
+# =============================================================================
+# REDEFINIÇÃO DE SENHA — VERSÃO DE TESTE
+# Usa o código fixo "123456" sem enviar nenhum e-mail real.
+# Para ativar a versão de produção (com envio de e-mail),
+# substitua este bloco pelo conteúdo de routers/auth_email.py
+# =============================================================================
+
+CODIGO_TESTE = "123456"
+EXPIRACAO_MINUTOS = 15
+
+
+@router.post("/esqueceu-senha")
+def esqueceu_senha(dados: EsqueceuSenhaRequest):
+    """
+    [VERSÃO TESTE] Simula o envio de código de verificação.
+    O código sempre será '123456' — nenhum e-mail é enviado de verdade.
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
+
+    cursor = conn.cursor(dictionary=True)
+    try:
+        # Verifica se o e-mail existe na base de dados (Requisito 2 garantido aqui)
+        cursor.execute("SELECT id FROM usuarios WHERE email = %s", (dados.email,))
+        usuario = cursor.fetchone()
+        if not usuario:
+            # Por segurança retornamos sucesso para evitar vazamento de dados de quais emails existem.
+            # Como o utilizador não existe, NÃO geramos código nem imprimimos nada no console.
+            return {"mensagem": "Se este e-mail estiver cadastrado, você receberá um código."}
+
+        # Remove códigos antigos do mesmo usuário
+        cursor.execute(
+            "DELETE FROM codigos_redefinicao_senha WHERE usuario_id = %s",
+            (usuario["id"],)
+        )
+
+        # Insere o código fixo de teste com validade de 15 minutos
+        expira_em = datetime.now() + timedelta(minutes=EXPIRACAO_MINUTOS)
+        cursor.execute(
+            "INSERT INTO codigos_redefinicao_senha (usuario_id, codigo, expira_em) VALUES (%s, %s, %s)",
+            (usuario["id"], CODIGO_TESTE, expira_em)
+        )
+        conn.commit()
+
+        # O email existe, então em produção seria disparado o envio de e-mail.
+        # Para teste, logamos no console:
+        print(f"[TESTE] O e-mail existe na BD. Código de redefinição para {dados.email}: {CODIGO_TESTE}")
+
+        return {"mensagem": "Se este e-mail estiver cadastrado, você receberá um código."}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@router.post("/verificar-codigo")
+def verificar_codigo(dados: VerificarCodigoRequest):
+    """
+    Valida se o código informado é correto e ainda está dentro do prazo.
+    Não consome o código — ele ainda poderá ser usado na etapa de redefinição.
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
+
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT id FROM usuarios WHERE email = %s", (dados.email,))
+        usuario = cursor.fetchone()
+        if not usuario:
+            raise HTTPException(status_code=400, detail="Código inválido ou expirado.")
+
+        cursor.execute(
+            """
+            SELECT id FROM codigos_redefinicao_senha
+            WHERE usuario_id = %s AND codigo = %s AND usado = FALSE AND expira_em > NOW()
+            """,
+            (usuario["id"], dados.codigo)
+        )
+        registro = cursor.fetchone()
+        if not registro:
+            raise HTTPException(status_code=400, detail="Código inválido ou expirado.")
+
+        return {"mensagem": "Código válido. Você pode redefinir sua senha."}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@router.post("/redefinir-senha")
+def redefinir_senha(dados: RedefinirSenhaRequest):
+    """
+    Redefine a senha do usuário após validação do código.
+    Marca o código como 'usado' para impedir reutilização.
+    """
+    if len(dados.nova_senha) < 6:
+        raise HTTPException(status_code=400, detail="A nova senha precisa ter pelo menos 6 caracteres.")
+
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
+
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT id FROM usuarios WHERE email = %s", (dados.email,))
+        usuario = cursor.fetchone()
+        if not usuario:
+            raise HTTPException(status_code=400, detail="Código inválido ou expirado.")
+
+        # Valida o código mais uma vez antes de alterar a senha
+        cursor.execute(
+            """
+            SELECT id FROM codigos_redefinicao_senha
+            WHERE usuario_id = %s AND codigo = %s AND usado = FALSE AND expira_em > NOW()
+            """,
+            (usuario["id"], dados.codigo)
+        )
+        registro = cursor.fetchone()
+        if not registro:
+            raise HTTPException(status_code=400, detail="Código inválido ou expirado.")
+
+        # Gera o hash da nova senha e atualiza
+        nova_hash = bcrypt.hashpw(dados.nova_senha.encode("utf-8"), bcrypt.gensalt())
+        cursor.execute(
+            "UPDATE usuarios SET senha_hash = %s WHERE id = %s",
+            (nova_hash.decode("utf-8"), usuario["id"])
+        )
+
+        # Marca o código como usado para evitar reaproveitamento
+        cursor.execute(
+            "UPDATE codigos_redefinicao_senha SET usado = TRUE WHERE id = %s",
+            (registro["id"],)
+        )
+
+        conn.commit()
+        return {"mensagem": "Senha redefinida com sucesso!"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
     finally:
         cursor.close()
         conn.close()

@@ -6,7 +6,11 @@ import { authService } from "@/services/auth";
 import { Mail, Lock, Loader2, ArrowRight, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
-export function LoginView() {
+interface LoginViewProps {
+  onForgotPassword?: () => void;
+}
+
+export function LoginView({ onForgotPassword }: LoginViewProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,6 +32,11 @@ export function LoginView() {
 
     try {
       const user = await authService.login(email, password);
+
+      // [PREVENÇÃO DE ERRO] Limpa os dados do Onboarding em cache para garantir que 
+      // este novo utilizador não aceda ao currículo não guardado de um utilizador anterior.
+      localStorage.removeItem("@TalentBridge:OnboardingData");
+      sessionStorage.removeItem("@TalentBridge:OnboardingData");
 
       localStorage.setItem("@TalentBridge:user", JSON.stringify(user));
       localStorage.setItem("usuario_id", user.id.toString());
@@ -79,6 +88,18 @@ export function LoginView() {
             className="w-full h-12 border border-input rounded-md pl-10 pr-3 bg-background focus:ring-2 focus:ring-ring outline-none"
           />
         </div>
+
+        {onForgotPassword && (
+          <div className="text-right -mt-2">
+            <button
+              type="button"
+              onClick={onForgotPassword}
+              className="text-sm text-indigo-500 hover:text-indigo-600 transition"
+            >
+              Esqueceu a senha?
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="flex items-center gap-2 text-red-500 text-sm bg-red-500/10 p-3 rounded-md border border-red-500/20">

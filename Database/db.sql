@@ -74,6 +74,21 @@ CREATE TABLE IF NOT EXISTS soft_skills (
 );
 
 -- ==========================================
+-- REDEFINIÇÃO DE SENHA
+-- ==========================================
+
+-- Tabela para armazenar códigos de verificação de redefinição de senha
+CREATE TABLE IF NOT EXISTS codigos_redefinicao_senha (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id INT NOT NULL,
+    codigo VARCHAR(6) NOT NULL,
+    expira_em TIMESTAMP NOT NULL,
+    usado BOOLEAN DEFAULT FALSE,
+    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+-- ==========================================
 -- ÁREA DO RECRUTADOR E VAGAS
 -- ==========================================
 
