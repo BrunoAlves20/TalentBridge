@@ -66,6 +66,11 @@ export function RegisterView() {
       localStorage.setItem("@TalentBridge:user", JSON.stringify(userData));
       localStorage.setItem("usuario_id", response.id.toString());
 
+      // 4. [BUG FIX] Limpa dados de onboarding de sessões anteriores para evitar
+      //    que informações de outro usuário apareçam no fluxo de cadastro do currículo.
+      localStorage.removeItem("@TalentBridge:OnboardingData");
+      sessionStorage.removeItem("@TalentBridge:OnboardingData");
+
       // 4. Correção do Bug de Redirecionamento: Usamos o estado 'role' local em vez do retorno da API!
       if (role === "RECRUTADOR") {
         router.push("/recruiter/dashboard");
