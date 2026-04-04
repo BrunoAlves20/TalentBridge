@@ -25,9 +25,9 @@ O **TalentBridge** é uma aplicação moderna que conecta candidatos e recrutado
 
 ## 🐋 Instalando o Docker Desktop
 
-1. Acesse [https://www.docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop) e clique em **Download for Windows**
+1. Acesse [https://www.docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop) e clique em **Download for Windows - AMD64**
 2. Execute o `Docker Desktop Installer.exe`
-3. Durante a instalação, mantenha marcado **"Use WSL 2 instead of Hyper-V"**
+3. Durante a instalação, mantenha marcado **"Use WSL 2 instead of Hyper-V"** (SE APARECER)
 4. Após a instalação, **reinicie o PC**
 5. Abra o Docker Desktop pelo menu Iniciar e aceite os termos de uso
 6. Aguarde a baleia aparecer na barra de tarefas — isso indica que o Docker está pronto
