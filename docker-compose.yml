@@ -11,6 +11,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./backend:/app
+      - ./Database:/app/Database
 
   frontend:
     build:

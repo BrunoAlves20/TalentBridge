@@ -1,10 +1,4 @@
--- 1. Cria o banco do zero
-DROP DATABASE IF EXISTS talentbridge;
-CREATE DATABASE talentbridge;
-USE talentbridge;
-
--- 2. Cria a tabela base de usuários
-CREATE TABLE usuarios (
+CREATE TABLE IF NOT EXISTS usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -26,7 +20,7 @@ CREATE TABLE IF NOT EXISTS perfis_candidatos (
     github VARCHAR(255),
     portfolio VARCHAR(255),
     sobre_mim TEXT,
-    foto_perfil LONGTEXT, -- Usado para salvar URLs ou Base64 da imagem
+    foto_perfil LONGTEXT,
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
@@ -111,7 +105,7 @@ CREATE TABLE IF NOT EXISTS vagas (
     descricao TEXT NOT NULL,
     requisitos TEXT,
     modalidade ENUM('PRESENCIAL', 'HIBRIDO', 'REMOTO') NOT NULL DEFAULT 'PRESENCIAL',
-    localizacao VARCHAR(255), -- Cidade/Estado se presencial/híbrido
+    localizacao VARCHAR(255),
     faixa_salarial VARCHAR(100),
     status ENUM('ABERTA', 'PAUSADA', 'ENCERRADA') NOT NULL DEFAULT 'ABERTA',
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -128,5 +122,5 @@ CREATE TABLE IF NOT EXISTS candidaturas (
     data_candidatura TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vaga_id) REFERENCES vagas(id) ON DELETE CASCADE,
     FOREIGN KEY (candidato_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-    UNIQUE KEY unica_candidatura (vaga_id, candidato_id) -- Impede que o mesmo candidato se aplique duas vezes na mesma vaga
+    UNIQUE KEY unica_candidatura (vaga_id, candidato_id)
 );
