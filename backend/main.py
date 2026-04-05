@@ -2,12 +2,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routers import auth, candidatos, inteligencias
+from database import init_db
 
 app = FastAPI(
     title="TalentBridge API",
     version="2.0.0",
     description="Plataforma de recrutamento com extração de currículos via IA.",
 )
+
+# ── Startup ───────────────────────────────────────────────────────────────────
+@app.on_event("startup")
+def startup():
+    init_db()
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
