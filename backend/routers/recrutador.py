@@ -134,7 +134,7 @@ def deletar_vaga(vaga_id: int, recrutador_id: int):
         conn.close()
 
 
-@router.get("/vagas/{recrutador_id}")
+@router.get("/minhas-vagas/{recrutador_id}")
 def listar_vagas_do_recrutador(recrutador_id: int):
     """
     Lista todas as vagas do recrutador com o contador real de candidatos
@@ -179,7 +179,7 @@ def listar_vagas_do_recrutador(recrutador_id: int):
 # CANDIDATOS DE UMA VAGA (Pipeline)
 # ==============================================================================
 
-@router.get("/vagas/{vaga_id}/candidatos")
+@router.get("/pipeline/{vaga_id}/candidatos")
 def listar_candidatos_da_vaga(vaga_id: int):
     """
     Retorna todos os candidatos de uma vaga com perfil completo e status
@@ -472,4 +472,4 @@ def obter_ranking(recrutador_id: int, vaga_id: int = None):
         raise HTTPException(status_code=500, detail=f"Erro ao obter ranking: {str(e)}")
     finally:
         cursor.close()
-        conn.close() 
+        conn.close()
