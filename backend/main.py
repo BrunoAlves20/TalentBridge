@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import auth, candidatos, inteligencias
+from routers import auth, candidatos, inteligencias, recrutador
 from database import init_db
 
 app = FastAPI(
@@ -28,3 +28,4 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(candidatos.router)
 app.include_router(inteligencias.router)
+app.include_router(recrutador.router) 
