@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Briefcase, Users, UserCheck, Calendar, Award, TrendingUp,
   Search, ChevronLeft, ChevronRight, Mail, CheckCircle, 
@@ -57,18 +57,53 @@ const Badge = ({ children, variant }: { children: string, variant: string }) => 
 };
 
 export default function RecruiterDashboard() {
-  const [jobs, setJobs] = useState<Job[]>([
-    { id: 1, title: "Frontend Developer", location: "Remoto", type: "CLT", status: "Aberta" },
-    { id: 2, title: "Backend Developer", location: "São Paulo", type: "PJ", status: "Fechada" },
-    { id: 3, title: "UX Designer", location: "Híbrido", type: "CLT", status: "Aberta" }
-  ]);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
-  const [candidates, setCandidates] = useState<Candidate[]>([
-    { id: 1, name: "Lucas Mendes", job: "Frontend Developer", match: "92%", status: "Entrevista", email: "lucas@email.com", phone: "(11) 99999-1111", resume: "#" },
-    { id: 2, name: "Ana Costa", job: "Backend Developer", match: "88%", status: "Triagem", email: "ana@email.com", phone: "(11) 99999-2222", resume: "#" },
-    { id: 3, name: "Pedro Alves", job: "UX Designer", match: "84%", status: "Teste Técnico", email: "pedro@email.com", phone: "(11) 99999-3333", resume: "#" },
-    { id: 4, name: "Maria Souza", job: "Frontend Developer", match: "90%", status: "Triagem", email: "maria@email.com", phone: "(11) 99999-4444", resume: "#" }
-  ]);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+
+  // Carrega vagas e dashboard da API
+  useEffect(() => {
+    const recrutadorId = localStorage.getItem("usuario_id");
+    if (!recrutadorId) return;
+
+    // Carregar vagas
+    fetch(`${API_URL}/recrutador/minhas-vagas/${recrutadorId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.vagas) {
+          setJobs(data.vagas.map((v: any) => ({
+            id: v.id,
+            title: v.titulo,
+            location: v.localizacao || "Não informado",
+            type: v.modalidade || "CLT",
+            status: v.status === "ABERTA" ? "Aberta" : "Fechada",
+          })));
+        }
+      })
+      .catch(err => console.error("Erro ao carregar vagas:", err));
+
+    // Carregar dashboard
+    fetch(`${API_URL}/recrutador/dashboard/${recrutadorId}`)
+      .then(res => res.json())
+      .then(data => {
+        setDashboardData(data);
+        if (data.candidatos_recentes) {
+          setCandidates(data.candidatos_recentes.map((c: any, idx: number) => ({
+            id: c.usuario_id || idx + 1,
+            name: c.nome,
+            job: c.vaga_titulo || "—",
+            match: "—",
+            status: c.status_candidatura || "Enviado",
+            email: c.email,
+            phone: "",
+            resume: "#",
+          })));
+        }
+      })
+      .catch(err => console.error("Erro ao carregar dashboard:", err));
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterJob, setFilterJob] = useState("Todas");
@@ -114,23 +149,59 @@ export default function RecruiterDashboard() {
     setOpenJobModal(true);
   };
 
-  const handleSaveJob = () => {
+  const handleSaveJob = async () => {
     if (!formTitle || !formLocation) return;
-    if (editingJob) {
-      setJobs(jobs.map(j => j.id === editingJob.id ? { ...j, title: formTitle, location: formLocation, type: formType, status: formStatus } : j));
-    } else {
-      const newJob: Job = { id: Date.now(), title: formTitle, location: formLocation, type: formType, status: formStatus };
-      setJobs([...jobs, newJob]);
+    const recrutadorId = localStorage.getItem("usuario_id");
+    if (!recrutadorId) return;
+
+    try {
+      if (editingJob) {
+        const res = await fetch(`${API_URL}/recrutador/vagas/${editingJob.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recrutador_id: Number(recrutadorId),
+            titulo: formTitle,
+            descricao: "",
+            requisitos: "",
+            modalidade: formType || "PRESENCIAL",
+            localizacao: formLocation,
+            faixa_salarial: "",
+            status: formStatus === "Aberta" ? "ABERTA" : "FECHADA",
+          }),
+        });
+        if (res.ok) {
+          setJobs(jobs.map(j => j.id === editingJob.id ? { ...j, title: formTitle, location: formLocation, type: formType, status: formStatus } : j));
+        }
+      } else {
+        const res = await fetch(`${API_URL}/recrutador/vagas`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recrutador_id: Number(recrutadorId),
+            titulo: formTitle,
+            descricao: "",
+            requisitos: "",
+            modalidade: formType || "PRESENCIAL",
+            localizacao: formLocation,
+            faixa_salarial: "",
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const newJob: Job = { id: data.id, title: formTitle, location: formLocation, type: formType, status: formStatus };
+          setJobs([...jobs, newJob]);
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao salvar vaga:", err);
     }
     setOpenJobModal(false);
   };
 
-  const pipelineData = [
-    { name: "Triagem", value: 40 },
-    { name: "Teste", value: 25 },
-    { name: "Entrevista", value: 20 },
-    { name: "Contratados", value: 15 }
-  ];
+  const pipelineData = dashboardData?.candidatos_por_etapa
+    ? Object.entries(dashboardData.candidatos_por_etapa).map(([name, value]) => ({ name, value: value as number }))
+    : [];
   const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444"];
 
   return (
@@ -144,12 +215,12 @@ export default function RecruiterDashboard() {
 
         {/* 1. Cards de Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-          <StatCard title="Vagas Abertas" value={jobs.filter(j => j.status === 'Aberta').length} icon={Briefcase} />
-          <StatCard title="Total de Candidatos" value={candidates.length} icon={Users} />
-          <StatCard title="Candidatos em Processo" value="74" icon={UserCheck} />
-          <StatCard title="Entrevistas Agendadas" value="19" icon={Calendar} />
-          <StatCard title="Contratações Realizadas" value="6" icon={Award} />
-          <StatCard title="Taxa de Conversão" value="8.3%" icon={TrendingUp} />
+          <StatCard title="Vagas Abertas" value={dashboardData?.vagas_abertas ?? jobs.filter(j => j.status === 'Aberta').length} icon={Briefcase} />
+          <StatCard title="Total de Candidatos" value={dashboardData?.total_candidatos ?? 0} icon={Users} />
+          <StatCard title="Candidatos em Processo" value={dashboardData?.total_candidatos ?? 0} icon={UserCheck} />
+          <StatCard title="Entrevistas Agendadas" value={dashboardData?.candidatos_por_etapa?.ENTREVISTA ?? 0} icon={Calendar} />
+          <StatCard title="Contratações Realizadas" value={dashboardData?.candidatos_por_etapa?.APROVADO ?? 0} icon={Award} />
+          <StatCard title="Taxa de Conversão" value={`${dashboardData?.taxa_conversao ?? 0}%`} icon={TrendingUp} />
         </div>
 
         {/* 2. Analytics */}
@@ -207,7 +278,7 @@ export default function RecruiterDashboard() {
                     </td>
                     <td className="p-5 text-right space-x-2">
                       <button onClick={() => handleOpenJobModal(job)} className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-white transition"><Edit3 className="w-4 h-4" /></button>
-                      <button onClick={() => setJobs(jobs.filter(j => j.id !== job.id))} className="p-2.5 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg text-slate-400 hover:text-rose-500 transition"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={async () => { const rid = localStorage.getItem("usuario_id"); if (!rid) return; try { const res = await fetch(`${API_URL}/recrutador/vagas/${job.id}?recrutador_id=${rid}`, { method: "DELETE" }); if (res.ok) setJobs(jobs.filter(j => j.id !== job.id)); } catch(e) { console.error(e); } }} className="p-2.5 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg text-slate-400 hover:text-rose-500 transition"><Trash2 className="w-4 h-4" /></button>
                     </td>
                   </tr>
                 ))}

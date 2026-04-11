@@ -73,16 +73,7 @@ const STAGE_ORDER: Stage[] = ["Triagem", "Teste Técnico", "Entrevista", "Propos
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
-const INITIAL_CANDIDATES: PipelineCandidate[] = [
-  { id: 1,  name: "Lucas Mendes",   role: "Frontend Developer", location: "São Paulo, SP", matchScore: 94, stage: "Triagem",       appliedJob: "Frontend Developer", email: "lucas@email.com",   daysInStage: 2,  stacks: ["React", "TypeScript"] },
-  { id: 2,  name: "Maria Souza",    role: "Frontend Developer", location: "Remoto",        matchScore: 90, stage: "Triagem",       appliedJob: "Frontend Developer", email: "maria@email.com",   daysInStage: 1,  stacks: ["React", "Vue.js"] },
-  { id: 3,  name: "Ana Costa",      role: "Backend Developer",  location: "São Paulo, SP", matchScore: 82, stage: "Teste Técnico", appliedJob: "Backend Developer",  email: "ana@email.com",     daysInStage: 4,  stacks: ["Python", "FastAPI"] },
-  { id: 4,  name: "Pedro Alves",    role: "UX Designer",        location: "BH, MG",        matchScore: 87, stage: "Entrevista",    appliedJob: "UX Designer",        email: "pedro@email.com",   daysInStage: 3,  stacks: ["Figma", "Framer"] },
-  { id: 5,  name: "Carlos Lima",    role: "Frontend Developer", location: "Rio de Janeiro", matchScore: 75, stage: "Triagem",       appliedJob: "Frontend Developer", email: "carlos@email.com",  daysInStage: 5,  stacks: ["React", "SASS"] },
-  { id: 6,  name: "Juliana Melo",   role: "Backend Developer",  location: "Remoto",        matchScore: 88, stage: "Proposta",      appliedJob: "Backend Developer",  email: "ju@email.com",      daysInStage: 2,  stacks: ["Node.js", "PostgreSQL"] },
-  { id: 7,  name: "Rafael Nunes",   role: "Frontend Developer", location: "Curitiba, PR",  matchScore: 91, stage: "Contratado",    appliedJob: "Frontend Developer", email: "rafael@email.com",  daysInStage: 0,  stacks: ["React", "Next.js"] },
-  { id: 8,  name: "Bruna Faria",    role: "UX Designer",        location: "São Paulo, SP", matchScore: 84, stage: "Teste Técnico", appliedJob: "UX Designer",        email: "bruna@email.com",   daysInStage: 6,  stacks: ["Figma", "Adobe XD"] },
-];
+const INITIAL_CANDIDATES: PipelineCandidate[] = [];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

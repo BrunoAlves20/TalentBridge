@@ -28,90 +28,9 @@ interface Candidate {
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
-const CANDIDATES: Candidate[] = [
-  {
-    id: 1,
-    name: "Lucas Mendes",
-    role: "Frontend Developer",
-    location: "São Paulo, SP",
-    matchScore: 94,
-    appliedJob: "Frontend Developer",
-    stacks: ["React", "TypeScript", "Next.js", "Tailwind CSS", "GraphQL"],
-    softSkills: ["Comunicação", "Trabalho em Equipe", "Proatividade"],
-    experience: 5,
-    education: "Ciência da Computação — USP",
-    about: "Desenvolvedor apaixonado por criar interfaces rápidas e acessíveis com foco total na experiência do usuário.",
-    strengths: ["React e TypeScript", "Next.js App Router", "Tailwind CSS"],
-    gaps: ["GraphQL avançado"],
-    workMode: "Remoto",
-  },
-  {
-    id: 2,
-    name: "Maria Souza",
-    role: "Frontend Developer",
-    location: "Remoto",
-    matchScore: 90,
-    appliedJob: "Frontend Developer",
-    stacks: ["React", "JavaScript", "Vue.js", "CSS", "Figma"],
-    softSkills: ["Liderança", "Criatividade", "Atenção aos Detalhes"],
-    experience: 4,
-    education: "Sistemas de Informação — UNICAMP",
-    about: "Desenvolvedora com forte senso estético e experiência em design systems colaborativos.",
-    strengths: ["React", "JavaScript avançado", "Figma"],
-    gaps: ["TypeScript", "Next.js"],
-    workMode: "Remoto",
-  },
-  {
-    id: 3,
-    name: "Pedro Alves",
-    role: "UX Designer",
-    location: "Belo Horizonte, MG",
-    matchScore: 87,
-    appliedJob: "UX Designer",
-    stacks: ["Figma", "Adobe XD", "Framer", "HTML", "CSS"],
-    softSkills: ["Empatia", "Pesquisa de Usuário", "Comunicação Efetiva"],
-    experience: 3,
-    education: "Design Gráfico — UFMG",
-    about: "Designer UX com foco em pesquisa qualitativa e prototipagem de alta fidelidade.",
-    strengths: ["Figma", "Pesquisa de usuário", "Prototipagem"],
-    gaps: ["Desenvolvimento front-end", "Acessibilidade avançada"],
-    workMode: "Híbrido",
-  },
-  {
-    id: 4,
-    name: "Ana Costa",
-    role: "Backend Developer",
-    location: "São Paulo, SP",
-    matchScore: 82,
-    appliedJob: "Backend Developer",
-    stacks: ["Python", "FastAPI", "PostgreSQL", "Docker", "Redis"],
-    softSkills: ["Resolução de Problemas", "Pensamento Crítico", "Resiliência"],
-    experience: 4,
-    education: "Engenharia de Software — FIAP",
-    about: "Desenvolvedora backend especializada em APIs de alta performance e microsserviços.",
-    strengths: ["Python / FastAPI", "PostgreSQL", "Docker"],
-    gaps: ["Kubernetes", "AWS avançado"],
-    workMode: "Híbrido",
-  },
-  {
-    id: 5,
-    name: "Carlos Lima",
-    role: "Frontend Developer",
-    location: "Rio de Janeiro, RJ",
-    matchScore: 75,
-    appliedJob: "Frontend Developer",
-    stacks: ["React", "JavaScript", "SASS", "Bootstrap"],
-    softSkills: ["Adaptabilidade", "Trabalho em Equipe"],
-    experience: 2,
-    education: "Análise e Desenvolvimento — SENAC",
-    about: "Desenvolvedor júnior em transição para pleno, com portfólio sólido em projetos pessoais.",
-    strengths: ["React", "JavaScript"],
-    gaps: ["TypeScript", "Next.js", "Tailwind CSS", "Testes automatizados"],
-    workMode: "Presencial",
-  },
-];
+const CANDIDATES: Candidate[] = [];
 
-const JOBS = ["Todas as Vagas", "Frontend Developer", "Backend Developer", "UX Designer"];
+const JOBS = ["Todas as Vagas"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

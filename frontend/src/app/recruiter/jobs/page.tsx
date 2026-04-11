@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Plus, Search, Edit3, Trash2, X, Briefcase,
   MapPin, Clock, Users, ChevronDown, AlertCircle
@@ -30,53 +30,7 @@ interface Job {
 
 // ─── Dados iniciais (mock) ────────────────────────────────────────────────────
 
-const INITIAL_JOBS: Job[] = [
-  {
-    id: 1,
-    title: "Frontend Developer",
-    department: "Engenharia",
-    location: "São Paulo, SP",
-    workMode: "Remoto",
-    contractType: "CLT",
-    salaryMin: "8000",
-    salaryMax: "12000",
-    status: "Aberta",
-    description: "Buscamos um desenvolvedor Frontend para construir interfaces modernas com React e Next.js.",
-    requirements: "React, TypeScript, Tailwind CSS, 3+ anos de experiência",
-    applicants: 18,
-    createdAt: "2025-01-10",
-  },
-  {
-    id: 2,
-    title: "Backend Developer",
-    department: "Engenharia",
-    location: "São Paulo, SP",
-    workMode: "Híbrido",
-    contractType: "PJ",
-    salaryMin: "10000",
-    salaryMax: "15000",
-    status: "Pausada",
-    description: "Vaga para desenvolvedor Backend com foco em APIs REST e microserviços.",
-    requirements: "Python, FastAPI, Docker, PostgreSQL, 4+ anos de experiência",
-    applicants: 9,
-    createdAt: "2025-01-05",
-  },
-  {
-    id: 3,
-    title: "UX Designer",
-    department: "Design",
-    location: "Remoto",
-    workMode: "Remoto",
-    contractType: "CLT",
-    salaryMin: "7000",
-    salaryMax: "10000",
-    status: "Aberta",
-    description: "Designer UX para criar experiências excepcionais nos nossos produtos digitais.",
-    requirements: "Figma, Design System, Pesquisa de usuário, 2+ anos",
-    applicants: 24,
-    createdAt: "2025-01-12",
-  },
-];
+const INITIAL_JOBS: Job[] = [];
 
 const EMPTY_FORM: Omit<Job, "id" | "applicants" | "createdAt"> = {
   title: "",
@@ -418,11 +372,41 @@ function DeleteModal({ job, onClose, onConfirm }: { job: Job; onClose: () => voi
 // ─── Page principal ───────────────────────────────────────────────────────────
 
 export default function JobsPage() {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
   const [jobs, setJobs] = useState<Job[]>(INITIAL_JOBS);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<JobStatus | "Todas">("Todas");
   const [modalJob, setModalJob] = useState<Partial<Job> | null | false>(false);
   const [deleteJob, setDeleteJob] = useState<Job | null>(null);
+
+  // Carregar vagas da API
+  useEffect(() => {
+    const recrutadorId = localStorage.getItem("usuario_id");
+    if (!recrutadorId) return;
+
+    fetch(`${API_URL}/recrutador/minhas-vagas/${recrutadorId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.vagas) {
+          setJobs(data.vagas.map((v: any) => ({
+            id: v.id,
+            title: v.titulo,
+            department: "",
+            location: v.localizacao || "Não informado",
+            workMode: (v.modalidade === "REMOTO" ? "Remoto" : v.modalidade === "HIBRIDO" ? "Híbrido" : "Presencial") as WorkMode,
+            contractType: "CLT" as ContractType,
+            salaryMin: v.faixa_salarial?.split("-")[0] || "",
+            salaryMax: v.faixa_salarial?.split("-")[1] || "",
+            status: (v.status === "ABERTA" ? "Aberta" : v.status === "PAUSADA" ? "Pausada" : "Fechada") as JobStatus,
+            description: v.descricao || "",
+            requirements: v.requisitos || "",
+            applicants: v.total_candidatos || 0,
+            createdAt: v.criado_em?.split("T")[0] || new Date().toISOString().split("T")[0],
+          })));
+        }
+      })
+      .catch(err => console.error("Erro ao carregar vagas:", err));
+  }, []);
 
   const filtered = jobs.filter((j) => {
     const matchSearch =
@@ -432,28 +416,79 @@ export default function JobsPage() {
     return matchSearch && matchStatus;
   });
 
-  const handleSave = (data: Omit<Job, "id" | "applicants" | "createdAt">) => {
-    if (modalJob && (modalJob as Job).id) {
-      setJobs((prev) =>
-        prev.map((j) => (j.id === (modalJob as Job).id ? { ...j, ...data } : j))
-      );
-    } else {
-      setJobs((prev) => [
-        ...prev,
-        {
-          ...data,
-          id: Date.now(),
-          applicants: 0,
-          createdAt: new Date().toISOString().split("T")[0],
-        },
-      ]);
+  const handleSave = async (data: Omit<Job, "id" | "applicants" | "createdAt">) => {
+    const recrutadorId = localStorage.getItem("usuario_id");
+    if (!recrutadorId) return;
+
+    const modalidadeMap: Record<string, string> = { "Remoto": "REMOTO", "Híbrido": "HIBRIDO", "Presencial": "PRESENCIAL" };
+    const statusMap: Record<string, string> = { "Aberta": "ABERTA", "Pausada": "PAUSADA", "Fechada": "FECHADA" };
+
+    try {
+      if (modalJob && (modalJob as Job).id) {
+        const res = await fetch(`${API_URL}/recrutador/vagas/${(modalJob as Job).id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recrutador_id: Number(recrutadorId),
+            titulo: data.title,
+            descricao: data.description,
+            requisitos: data.requirements,
+            modalidade: modalidadeMap[data.workMode] || "PRESENCIAL",
+            localizacao: data.location,
+            faixa_salarial: data.salaryMin && data.salaryMax ? `${data.salaryMin}-${data.salaryMax}` : "",
+            status: statusMap[data.status] || "ABERTA",
+          }),
+        });
+        if (res.ok) {
+          setJobs((prev) =>
+            prev.map((j) => (j.id === (modalJob as Job).id ? { ...j, ...data } : j))
+          );
+        }
+      } else {
+        const res = await fetch(`${API_URL}/recrutador/vagas`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recrutador_id: Number(recrutadorId),
+            titulo: data.title,
+            descricao: data.description,
+            requisitos: data.requirements,
+            modalidade: modalidadeMap[data.workMode] || "PRESENCIAL",
+            localizacao: data.location,
+            faixa_salarial: data.salaryMin && data.salaryMax ? `${data.salaryMin}-${data.salaryMax}` : "",
+          }),
+        });
+        if (res.ok) {
+          const result = await res.json();
+          setJobs((prev) => [
+            ...prev,
+            {
+              ...data,
+              id: result.id,
+              applicants: 0,
+              createdAt: new Date().toISOString().split("T")[0],
+            },
+          ]);
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao salvar vaga:", err);
     }
     setModalJob(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deleteJob) {
-      setJobs((prev) => prev.filter((j) => j.id !== deleteJob.id));
+      const recrutadorId = localStorage.getItem("usuario_id");
+      if (!recrutadorId) return;
+      try {
+        const res = await fetch(`${API_URL}/recrutador/vagas/${deleteJob.id}?recrutador_id=${recrutadorId}`, { method: "DELETE" });
+        if (res.ok) {
+          setJobs((prev) => prev.filter((j) => j.id !== deleteJob.id));
+        }
+      } catch (err) {
+        console.error("Erro ao excluir vaga:", err);
+      }
       setDeleteJob(null);
     }
   };
