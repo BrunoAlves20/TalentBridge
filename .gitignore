@@ -52,4 +52,5 @@ Thumbs.db
 .vscode/
 .idea/
 *.suo
-*.user
+*.userfrontend.zip
+*.zip

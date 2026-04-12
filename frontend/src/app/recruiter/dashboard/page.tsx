@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Briefcase, Users, UserCheck, Calendar, Award, TrendingUp,
   Search, ChevronLeft, ChevronRight, Mail, CheckCircle, 
-  Eye, Trash2, Edit3, X, FileText, Plus
+  Eye, Trash2, Edit3, X, FileText, Plus, MapPin, Clock, ChevronDown, AlertCircle
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -17,7 +17,12 @@ interface Job {
   title: string;
   location: string;
   type: string;
-  status: "Aberta" | "Fechada";
+  status: "Aberta" | "Fechada" | "Pausada";
+  department?: string;
+  description?: string;
+  requirements?: string;
+  salaryMin?: string;
+  salaryMax?: string;
 }
 
 interface Candidate {
@@ -30,6 +35,10 @@ interface Candidate {
   phone: string;
   resume: string;
 }
+
+type WorkMode = "Remoto" | "Híbrido" | "Presencial";
+type ContractType = "CLT" | "PJ" | "Estágio" | "Freelance";
+type JobStatus = "Aberta" | "Pausada" | "Fechada";
 
 // --- StatCard Adaptável ---
 const StatCard = ({ title, value, icon: Icon }: any) => (
@@ -56,19 +65,354 @@ const Badge = ({ children, variant }: { children: string, variant: string }) => 
   return <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${styles[variant] || styles.neutral}`}>{children}</span>;
 };
 
-export default function RecruiterDashboard() {
-  const [jobs, setJobs] = useState<Job[]>([
-    { id: 1, title: "Frontend Developer", location: "Remoto", type: "CLT", status: "Aberta" },
-    { id: 2, title: "Backend Developer", location: "São Paulo", type: "PJ", status: "Fechada" },
-    { id: 3, title: "UX Designer", location: "Híbrido", type: "CLT", status: "Aberta" }
-  ]);
+// --- Input Label helper ---
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">
+      {children}
+    </label>
+  );
+}
 
-  const [candidates, setCandidates] = useState<Candidate[]>([
-    { id: 1, name: "Lucas Mendes", job: "Frontend Developer", match: "92%", status: "Entrevista", email: "lucas@email.com", phone: "(11) 99999-1111", resume: "#" },
-    { id: 2, name: "Ana Costa", job: "Backend Developer", match: "88%", status: "Triagem", email: "ana@email.com", phone: "(11) 99999-2222", resume: "#" },
-    { id: 3, name: "Pedro Alves", job: "UX Designer", match: "84%", status: "Teste Técnico", email: "pedro@email.com", phone: "(11) 99999-3333", resume: "#" },
-    { id: 4, name: "Maria Souza", job: "Frontend Developer", match: "90%", status: "Triagem", email: "maria@email.com", phone: "(11) 99999-4444", resume: "#" }
-  ]);
+function inputCls() {
+  return "w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white text-sm transition";
+}
+
+// --- Modal de Criação / Edição de Vaga ---
+function JobModal({
+  job,
+  onClose,
+  onSave,
+}: {
+  job: Partial<Job> | null;
+  onClose: () => void;
+  onSave: (data: Partial<Job>) => void;
+}) {
+  const [form, setForm] = useState<Partial<Job>>(
+    job
+      ? {
+          title: job.title ?? "",
+          department: job.department ?? "",
+          location: job.location ?? "",
+          type: job.type ?? "Remoto",
+          status: job.status ?? "Aberta",
+          description: job.description ?? "",
+          requirements: job.requirements ?? "",
+          salaryMin: job.salaryMin ?? "",
+          salaryMax: job.salaryMax ?? "",
+        }
+      : {
+          title: "",
+          department: "",
+          location: "",
+          type: "Remoto",
+          status: "Aberta",
+          description: "",
+          requirements: "",
+          salaryMin: "",
+          salaryMax: "",
+        }
+  );
+
+  const [errors, setErrors] = useState<Partial<Record<string, string>>>({});
+
+  const validate = () => {
+    const e: typeof errors = {};
+    if (!form.title?.trim()) e.title = "Obrigatório";
+    if (!form.department?.trim()) e.department = "Obrigatório";
+    if (!form.location?.trim()) e.location = "Obrigatório";
+    if (!form.description?.trim()) e.description = "Obrigatório";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const set = (k: keyof typeof form, v: string) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const handleSave = () => {
+    if (validate()) onSave(form);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-[#1A1D2D]/30 shrink-0">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+            {job?.id ? "Editar Vaga" : "Criar Nova Vaga"}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-8 space-y-6 overflow-y-auto">
+          {/* Título + Departamento */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <FieldLabel>Título da Vaga *</FieldLabel>
+              <input
+                className={inputCls()}
+                value={form.title}
+                onChange={(e) => set("title", e.target.value)}
+                placeholder="ex: Frontend Developer"
+              />
+              {errors.title && (
+                <p className="text-xs text-rose-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> {errors.title}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <FieldLabel>Departamento *</FieldLabel>
+              <input
+                className={inputCls()}
+                value={form.department}
+                onChange={(e) => set("department", e.target.value)}
+                placeholder="ex: Engenharia"
+              />
+              {errors.department && (
+                <p className="text-xs text-rose-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> {errors.department}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Localização + Modalidade */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <FieldLabel>Localização *</FieldLabel>
+              <input
+                className={inputCls()}
+                value={form.location}
+                onChange={(e) => set("location", e.target.value)}
+                placeholder="ex: São Paulo, SP"
+              />
+              {errors.location && (
+                <p className="text-xs text-rose-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> {errors.location}
+                </p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <FieldLabel>Modalidade</FieldLabel>
+              <div className="relative">
+                <select
+                  className={inputCls() + " appearance-none pr-10"}
+                  value={form.type}
+                  onChange={(e) => set("type", e.target.value)}
+                >
+                  <option>Remoto</option>
+                  <option>Híbrido</option>
+                  <option>Presencial</option>
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* Contrato + Salário */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <FieldLabel>Tipo de Contrato</FieldLabel>
+              <div className="relative">
+                <select
+                  className={inputCls() + " appearance-none pr-10"}
+                  defaultValue="CLT"
+                >
+                  <option>CLT</option>
+                  <option>PJ</option>
+                  <option>Estágio</option>
+                  <option>Freelance</option>
+                </select>
+                <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <FieldLabel>Salário mín. (R$)</FieldLabel>
+              <input
+                className={inputCls()}
+                value={form.salaryMin}
+                onChange={(e) => set("salaryMin", e.target.value)}
+                placeholder="5000"
+                type="number"
+              />
+            </div>
+            <div className="space-y-2">
+              <FieldLabel>Salário máx. (R$)</FieldLabel>
+              <input
+                className={inputCls()}
+                value={form.salaryMax}
+                onChange={(e) => set("salaryMax", e.target.value)}
+                placeholder="10000"
+                type="number"
+              />
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="space-y-2">
+            <FieldLabel>Status da Vaga</FieldLabel>
+            <div className="flex gap-3">
+              {(["Aberta", "Pausada", "Fechada"] as JobStatus[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => set("status", s)}
+                  className={`flex-1 py-3 rounded-xl text-sm font-bold border transition ${
+                    form.status === s
+                      ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20"
+                      : "border-slate-200 dark:border-slate-800 text-slate-400 hover:border-slate-300"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Descrição */}
+          <div className="space-y-2">
+            <FieldLabel>Descrição da Vaga *</FieldLabel>
+            <textarea
+              className={inputCls() + " h-28 resize-none"}
+              value={form.description}
+              onChange={(e) => set("description", e.target.value)}
+              placeholder="Descreva as responsabilidades e o contexto da vaga..."
+            />
+            {errors.description && (
+              <p className="text-xs text-rose-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> {errors.description}
+              </p>
+            )}
+          </div>
+
+          {/* Requisitos */}
+          <div className="space-y-2">
+            <FieldLabel>Requisitos e Habilidades</FieldLabel>
+            <textarea
+              className={inputCls() + " h-24 resize-none"}
+              value={form.requirements}
+              onChange={(e) => set("requirements", e.target.value)}
+              placeholder="Liste as tecnologias e habilidades necessárias, separadas por vírgula..."
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 bg-slate-50 dark:bg-[#1A1D2D]/30 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
+          <button
+            onClick={onClose}
+            className="text-sm font-bold text-slate-500 hover:text-slate-700 dark:hover:text-white px-5 transition"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl text-sm font-black transition shadow-lg shadow-indigo-500/20"
+          >
+            {job?.id ? "Salvar Alterações" : "Publicar Vaga"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Modal de Exclusão ---
+function DeleteModal({ job, onClose, onConfirm }: { job: Job; onClose: () => void; onConfirm: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-2xl shadow-2xl p-8 text-center">
+        <div className="w-14 h-14 bg-rose-50 dark:bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Trash2 className="w-6 h-6 text-rose-500" />
+        </div>
+        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Excluir esta vaga?</h3>
+        <p className="text-slate-500 dark:text-slate-400 mb-8">
+          A vaga <span className="font-bold text-slate-700 dark:text-slate-200">"{job.title}"</span> e todos
+          os seus dados serão removidos permanentemente.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-800 font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold transition shadow-lg shadow-rose-500/20"
+          >
+            Sim, excluir
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function RecruiterDashboard() {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [deleteJob, setDeleteJob] = useState<Job | null>(null);
+
+  // Carrega vagas e dashboard da API
+  useEffect(() => {
+    const recrutadorId = localStorage.getItem("usuario_id");
+    if (!recrutadorId) return;
+
+    // Carregar vagas
+    fetch(`${API_URL}/recrutador/minhas-vagas/${recrutadorId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.vagas) {
+          setJobs(data.vagas.map((v: any) => {
+            // Separar faixa salarial corretamente
+            const salaryParts = v.faixa_salarial ? v.faixa_salarial.split("-") : [];
+            return {
+              id: v.id,
+              title: v.titulo,
+              location: v.localizacao || "Não informado",
+              type: v.modalidade === "REMOTO" ? "Remoto" : v.modalidade === "HIBRIDO" ? "Híbrido" : "Presencial",
+              status: v.status === "ABERTA" ? "Aberta" : v.status === "PAUSADA" ? "Pausada" : "Fechada",
+              department: v.departamento || "",
+              description: v.descricao || "",
+              requirements: v.requisitos || "",
+              salaryMin: salaryParts[0]?.trim() || "",
+              salaryMax: salaryParts[1]?.trim() || "",
+            };
+          }));
+        }
+      })
+      .catch(err => console.error("Erro ao carregar vagas:", err));
+
+    // Carregar dashboard
+    fetch(`${API_URL}/recrutador/dashboard/${recrutadorId}`)
+      .then(res => res.json())
+      .then(data => {
+        setDashboardData(data);
+        if (data.candidatos_recentes) {
+          setCandidates(data.candidatos_recentes.map((c: any, idx: number) => ({
+            id: c.usuario_id || idx + 1,
+            name: c.nome,
+            job: c.vaga_titulo || "—",
+            match: "—",
+            status: c.status_candidatura || "Enviado",
+            email: c.email,
+            phone: "",
+            resume: "#",
+          })));
+        }
+      })
+      .catch(err => console.error("Erro ao carregar dashboard:", err));
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterJob, setFilterJob] = useState("Todas");
@@ -76,11 +420,6 @@ export default function RecruiterDashboard() {
   const [openJobModal, setOpenJobModal] = useState(false);
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
-
-  const [formTitle, setFormTitle] = useState("");
-  const [formLocation, setFormLocation] = useState("");
-  const [formType, setFormType] = useState("");
-  const [formStatus, setFormStatus] = useState<"Aberta" | "Fechada">("Aberta");
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -99,38 +438,106 @@ export default function RecruiterDashboard() {
 
   const handleOpenJobModal = (job?: Job) => {
     if (job) {
-      setEditingJob(job);
-      setFormTitle(job.title);
-      setFormLocation(job.location);
-      setFormType(job.type);
-      setFormStatus(job.status);
+      // Garantir que os dados estejam preenchidos corretamente para edição
+      setEditingJob({
+        ...job,
+        department: job.department || "",
+        description: job.description || "",
+        requirements: job.requirements || "",
+        salaryMin: job.salaryMin || "",
+        salaryMax: job.salaryMax || "",
+      });
     } else {
       setEditingJob(null);
-      setFormTitle("");
-      setFormLocation("");
-      setFormType("");
-      setFormStatus("Aberta");
     }
     setOpenJobModal(true);
   };
 
-  const handleSaveJob = () => {
-    if (!formTitle || !formLocation) return;
-    if (editingJob) {
-      setJobs(jobs.map(j => j.id === editingJob.id ? { ...j, title: formTitle, location: formLocation, type: formType, status: formStatus } : j));
-    } else {
-      const newJob: Job = { id: Date.now(), title: formTitle, location: formLocation, type: formType, status: formStatus };
-      setJobs([...jobs, newJob]);
+  const handleSaveJob = async (data: Partial<Job>) => {
+    if (!data.title || !data.location) return;
+    const recrutadorId = localStorage.getItem("usuario_id");
+    if (!recrutadorId) return;
+
+    const modalidadeMap: Record<string, string> = { "Remoto": "REMOTO", "Híbrido": "HIBRIDO", "Presencial": "PRESENCIAL" };
+    const statusMap: Record<string, string> = { "Aberta": "ABERTA", "Pausada": "PAUSADA", "Fechada": "FECHADA" };
+
+    try {
+      if (editingJob) {
+        const res = await fetch(`${API_URL}/recrutador/vagas/${editingJob.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recrutador_id: Number(recrutadorId),
+            titulo: data.title,
+            departamento: data.department || "",
+            descricao: data.description || "",
+            requisitos: data.requirements || "",
+            modalidade: modalidadeMap[data.type || "Presencial"] || "PRESENCIAL",
+            localizacao: data.location,
+            faixa_salarial: data.salaryMin && data.salaryMax ? `${data.salaryMin}-${data.salaryMax}` : "",
+            status: statusMap[data.status || "Aberta"] || "ABERTA",
+          }),
+        });
+        if (res.ok) {
+          setJobs(jobs.map(j => j.id === editingJob.id ? { ...j, ...data } : j));
+        }
+      } else {
+        const res = await fetch(`${API_URL}/recrutador/vagas`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recrutador_id: Number(recrutadorId),
+            titulo: data.title,
+            departamento: data.department || "",
+            descricao: data.description || "",
+            requisitos: data.requirements || "",
+            modalidade: modalidadeMap[data.type || "Presencial"] || "PRESENCIAL",
+            localizacao: data.location,
+            faixa_salarial: data.salaryMin && data.salaryMax ? `${data.salaryMin}-${data.salaryMax}` : "",
+          }),
+        });
+        if (res.ok) {
+          const result = await res.json();
+          const newJob: Job = { 
+            id: result.id, 
+            title: data.title || "", 
+            location: data.location || "", 
+            type: data.type || "Remoto", 
+            status: data.status || "Aberta",
+            department: data.department,
+            description: data.description,
+            requirements: data.requirements,
+            salaryMin: data.salaryMin,
+            salaryMax: data.salaryMax,
+          };
+          setJobs([...jobs, newJob]);
+        }
+      }
+    } catch (err) {
+      console.error("Erro ao salvar vaga:", err);
     }
     setOpenJobModal(false);
   };
 
-  const pipelineData = [
-    { name: "Triagem", value: 40 },
-    { name: "Teste", value: 25 },
-    { name: "Entrevista", value: 20 },
-    { name: "Contratados", value: 15 }
-  ];
+  const handleDeleteJob = async () => {
+    if (deleteJob) {
+      const recrutadorId = localStorage.getItem("usuario_id");
+      if (!recrutadorId) return;
+      try {
+        const res = await fetch(`${API_URL}/recrutador/vagas/${deleteJob.id}?recrutador_id=${recrutadorId}`, { method: "DELETE" });
+        if (res.ok) {
+          setJobs(jobs.filter(j => j.id !== deleteJob.id));
+        }
+      } catch (err) {
+        console.error("Erro ao excluir vaga:", err);
+      }
+      setDeleteJob(null);
+    }
+  };
+
+  const pipelineData = dashboardData?.candidatos_por_etapa
+    ? Object.entries(dashboardData.candidatos_por_etapa).map(([name, value]) => ({ name, value: value as number }))
+    : [];
   const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444"];
 
   return (
@@ -144,12 +551,12 @@ export default function RecruiterDashboard() {
 
         {/* 1. Cards de Estatísticas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-          <StatCard title="Vagas Abertas" value={jobs.filter(j => j.status === 'Aberta').length} icon={Briefcase} />
-          <StatCard title="Total de Candidatos" value={candidates.length} icon={Users} />
-          <StatCard title="Candidatos em Processo" value="74" icon={UserCheck} />
-          <StatCard title="Entrevistas Agendadas" value="19" icon={Calendar} />
-          <StatCard title="Contratações Realizadas" value="6" icon={Award} />
-          <StatCard title="Taxa de Conversão" value="8.3%" icon={TrendingUp} />
+          <StatCard title="Vagas Abertas" value={dashboardData?.vagas_abertas ?? jobs.filter(j => j.status === 'Aberta').length} icon={Briefcase} />
+          <StatCard title="Total de Candidatos" value={dashboardData?.total_candidatos ?? 0} icon={Users} />
+          <StatCard title="Candidatos em Processo" value={dashboardData?.total_candidatos ?? 0} icon={UserCheck} />
+          <StatCard title="Entrevistas Agendadas" value={dashboardData?.candidatos_por_etapa?.ENTREVISTA ?? 0} icon={Calendar} />
+          <StatCard title="Contratações Realizadas" value={dashboardData?.candidatos_por_etapa?.APROVADO ?? 0} icon={Award} />
+          <StatCard title="Taxa de Conversão" value={`${dashboardData?.taxa_conversao ?? 0}%`} icon={TrendingUp} />
         </div>
 
         {/* 2. Analytics */}
@@ -203,11 +610,11 @@ export default function RecruiterDashboard() {
                     <td className="p-5 font-bold text-slate-900 dark:text-white text-base group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{job.title}</td>
                     <td className="p-5 text-slate-500 dark:text-slate-400">{job.location} • {job.type}</td>
                     <td className="p-5 text-center">
-                      <Badge variant={job.status === 'Aberta' ? 'success' : 'neutral'}>{job.status}</Badge>
+                      <Badge variant={job.status === 'Aberta' ? 'success' : job.status === 'Pausada' ? 'warning' : 'neutral'}>{job.status}</Badge>
                     </td>
                     <td className="p-5 text-right space-x-2">
                       <button onClick={() => handleOpenJobModal(job)} className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-white transition"><Edit3 className="w-4 h-4" /></button>
-                      <button onClick={() => setJobs(jobs.filter(j => j.id !== job.id))} className="p-2.5 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg text-slate-400 hover:text-rose-500 transition"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => setDeleteJob(job)} className="p-2.5 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg text-slate-400 hover:text-rose-500 transition"><Trash2 className="w-4 h-4" /></button>
                     </td>
                   </tr>
                 ))}
@@ -283,46 +690,20 @@ export default function RecruiterDashboard() {
 
       {/* MODAL: Vaga */}
       {openJobModal && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-[#1A1D2D]/30">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{editingJob ? 'Editar Vaga' : 'Criar Nova Vaga'}</h3>
-              <button onClick={() => setOpenJobModal(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-white"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-8 space-y-5">
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Título da Vaga</label>
-                <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" value={formTitle} onChange={e => setFormTitle(e.target.value)} />
-              </div>
-              {/* Grid com localização e contrato */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Localização</label>
-                  <input type="text" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 outline-none dark:text-white" value={formLocation} onChange={e => setFormLocation(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Contrato</label>
-                  <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 outline-none dark:text-white" value={formType} onChange={e => setFormType(e.target.value)}>
-                    <option value="">Selecione</option>
-                    <option value="CLT">CLT</option>
-                    <option value="PJ">PJ</option>
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Status da Vaga</label>
-                <div className="flex gap-3">
-                  <button onClick={() => setFormStatus('Aberta')} className={`flex-1 py-3 rounded-xl text-sm font-bold border transition ${formStatus === 'Aberta' ? 'bg-indigo-600 border-indigo-500 text-white' : 'border-slate-200 dark:border-slate-800 text-slate-400'}`}>Aberta</button>
-                  <button onClick={() => setFormStatus('Fechada')} className={`flex-1 py-3 rounded-xl text-sm font-bold border transition ${formStatus === 'Fechada' ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 dark:text-white text-slate-600' : 'border-slate-200 dark:border-slate-800 text-slate-400'}`}>Fechada</button>
-                </div>
-              </div>
-            </div>
-            <div className="p-6 bg-slate-50 dark:bg-[#1A1D2D]/30 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800">
-              <button onClick={() => setOpenJobModal(false)} className="text-sm font-bold text-slate-500 hover:text-slate-700 dark:hover:text-white px-4">Cancelar</button>
-              <button onClick={handleSaveJob} className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl text-sm font-black transition">Salvar Alterações</button>
-            </div>
-          </div>
-        </div>
+        <JobModal
+          job={editingJob}
+          onClose={() => setOpenJobModal(false)}
+          onSave={handleSaveJob}
+        />
+      )}
+
+      {/* MODAL: Exclusão */}
+      {deleteJob && (
+        <DeleteModal
+          job={deleteJob}
+          onClose={() => setDeleteJob(null)}
+          onConfirm={handleDeleteJob}
+        />
       )}
 
       {/* MODAL: Candidato */}

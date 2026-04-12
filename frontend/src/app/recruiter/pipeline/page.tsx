@@ -1,18 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   MoreHorizontal, ChevronRight, Mail, X,
   Users, CheckCircle2, Clock, Trophy, XCircle,
-  MapPin, Briefcase, ArrowRight
+  MapPin, Briefcase, ArrowRight, RefreshCw, AlertCircle,
+  ChevronDown
 } from "lucide-react";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
 type Stage = "Triagem" | "Teste Técnico" | "Entrevista" | "Proposta" | "Contratado";
 
+// Status que vêm do backend → mapeados para Stage do kanban
+const STATUS_TO_STAGE: Record<string, Stage> = {
+  ENVIADO:    "Triagem",
+  EM_ANALISE: "Teste Técnico",
+  ENTREVISTA: "Entrevista",
+  APROVADO:   "Proposta",
+  CONTRATADO: "Contratado",
+};
+
+const STAGE_TO_STATUS: Record<Stage, string> = {
+  "Triagem":       "ENVIADO",
+  "Teste Técnico": "EM_ANALISE",
+  "Entrevista":    "ENTREVISTA",
+  "Proposta":      "APROVADO",
+  "Contratado":    "CONTRATADO",
+};
+
 interface PipelineCandidate {
-  id: number;
+  id: number;           // candidatura_id
+  usuarioId: number;
   name: string;
   role: string;
   location: string;
@@ -22,6 +41,11 @@ interface PipelineCandidate {
   email: string;
   daysInStage: number;
   stacks: string[];
+}
+
+interface Vaga {
+  id: number;
+  titulo: string;
 }
 
 // ─── Config das colunas ───────────────────────────────────────────────────────
@@ -71,19 +95,6 @@ const STAGES: { key: Stage; label: string; color: string; icon: React.ElementTyp
 
 const STAGE_ORDER: Stage[] = ["Triagem", "Teste Técnico", "Entrevista", "Proposta", "Contratado"];
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const INITIAL_CANDIDATES: PipelineCandidate[] = [
-  { id: 1,  name: "Lucas Mendes",   role: "Frontend Developer", location: "São Paulo, SP", matchScore: 94, stage: "Triagem",       appliedJob: "Frontend Developer", email: "lucas@email.com",   daysInStage: 2,  stacks: ["React", "TypeScript"] },
-  { id: 2,  name: "Maria Souza",    role: "Frontend Developer", location: "Remoto",        matchScore: 90, stage: "Triagem",       appliedJob: "Frontend Developer", email: "maria@email.com",   daysInStage: 1,  stacks: ["React", "Vue.js"] },
-  { id: 3,  name: "Ana Costa",      role: "Backend Developer",  location: "São Paulo, SP", matchScore: 82, stage: "Teste Técnico", appliedJob: "Backend Developer",  email: "ana@email.com",     daysInStage: 4,  stacks: ["Python", "FastAPI"] },
-  { id: 4,  name: "Pedro Alves",    role: "UX Designer",        location: "BH, MG",        matchScore: 87, stage: "Entrevista",    appliedJob: "UX Designer",        email: "pedro@email.com",   daysInStage: 3,  stacks: ["Figma", "Framer"] },
-  { id: 5,  name: "Carlos Lima",    role: "Frontend Developer", location: "Rio de Janeiro", matchScore: 75, stage: "Triagem",       appliedJob: "Frontend Developer", email: "carlos@email.com",  daysInStage: 5,  stacks: ["React", "SASS"] },
-  { id: 6,  name: "Juliana Melo",   role: "Backend Developer",  location: "Remoto",        matchScore: 88, stage: "Proposta",      appliedJob: "Backend Developer",  email: "ju@email.com",      daysInStage: 2,  stacks: ["Node.js", "PostgreSQL"] },
-  { id: 7,  name: "Rafael Nunes",   role: "Frontend Developer", location: "Curitiba, PR",  matchScore: 91, stage: "Contratado",    appliedJob: "Frontend Developer", email: "rafael@email.com",  daysInStage: 0,  stacks: ["React", "Next.js"] },
-  { id: 8,  name: "Bruna Faria",    role: "UX Designer",        location: "São Paulo, SP", matchScore: 84, stage: "Teste Técnico", appliedJob: "UX Designer",        email: "bruna@email.com",   daysInStage: 6,  stacks: ["Figma", "Adobe XD"] },
-];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function scoreColor(score: number) {
@@ -96,6 +107,11 @@ function warningDays(days: number) {
   if (days >= 7) return "text-rose-500";
   if (days >= 4) return "text-amber-500";
   return "text-slate-400";
+}
+
+function calcDaysInStage(dataCandidatura: string): number {
+  const diff = Date.now() - new Date(dataCandidatura).getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
 }
 
 // ─── Card do candidato no pipeline ───────────────────────────────────────────
@@ -321,7 +337,7 @@ function CandidateDetail({
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold text-sm transition shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2"
             >
               <ArrowRight className="w-4 h-4" />
-              Avançar para "{nextStage}"
+              Avançar para &quot;{nextStage}&quot;
             </button>
           )}
           <a
@@ -339,33 +355,134 @@ function CandidateDetail({
 // ─── Page principal ───────────────────────────────────────────────────────────
 
 export default function PipelinePage() {
-  const [candidates, setCandidates] = useState<PipelineCandidate[]>(INITIAL_CANDIDATES);
-  const [selectedCandidate, setSelectedCandidate] = useState<PipelineCandidate | null>(null);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
-  const moveToNextStage = (id: number) => {
-    setCandidates((prev) =>
-      prev.map((c) => {
-        if (c.id !== id) return c;
-        const currentIdx = STAGE_ORDER.indexOf(c.stage);
-        const nextStage = STAGE_ORDER[currentIdx + 1];
-        return nextStage ? { ...c, stage: nextStage, daysInStage: 0 } : c;
+  const [candidates, setCandidates] = useState<PipelineCandidate[]>([]);
+  const [vagas, setVagas] = useState<Vaga[]>([]);
+  const [selectedVagaId, setSelectedVagaId] = useState<number | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<PipelineCandidate | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const recrutadorId =
+    typeof window !== "undefined" ? localStorage.getItem("usuario_id") : null;
+
+  // ── Carrega vagas do recrutador ──────────────────────────────────────────
+  useEffect(() => {
+    if (!recrutadorId) return;
+    fetch(`${API_URL}/recrutador/minhas-vagas/${recrutadorId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const lista: Vaga[] = (data.vagas ?? []).map((v: { id: number; titulo: string }) => ({
+          id: v.id,
+          titulo: v.titulo,
+        }));
+        setVagas(lista);
+        if (lista.length > 0) setSelectedVagaId(lista[0].id);
       })
-    );
-    setSelectedCandidate((prev) => {
-      if (!prev || prev.id !== id) return prev;
-      const currentIdx = STAGE_ORDER.indexOf(prev.stage);
-      const nextStage = STAGE_ORDER[currentIdx + 1];
-      return nextStage ? { ...prev, stage: nextStage, daysInStage: 0 } : prev;
-    });
+      .catch(() => setError("Não foi possível carregar as vagas."));
+  }, [recrutadorId, API_URL]);
+
+  // ── Carrega candidatos da vaga selecionada ───────────────────────────────
+  const fetchCandidatos = useCallback(() => {
+    if (!selectedVagaId) return;
+    setLoading(true);
+    setError(null);
+    fetch(`${API_URL}/recrutador/pipeline/${selectedVagaId}/candidatos`)
+      .then((r) => r.json())
+      .then((data) => {
+        const mapped: PipelineCandidate[] = (data.candidatos ?? []).map(
+          (c: {
+            candidatura_id: number;
+            usuario_id: number;
+            nome: string;
+            cidade: string;
+            estado: string;
+            email: string;
+            status_candidatura: string;
+            data_candidatura: string;
+            hard_skills: string[];
+            soft_skills: string[];
+          }) => ({
+            id: c.candidatura_id,
+            usuarioId: c.usuario_id,
+            name: c.nome,
+            role: "Candidato",
+            location: [c.cidade, c.estado].filter(Boolean).join(", ") || "—",
+            matchScore: 0, // pipeline não calcula score, use ranking para isso
+            stage: STATUS_TO_STAGE[c.status_candidatura] ?? "Triagem",
+            appliedJob: vagas.find((v) => v.id === selectedVagaId)?.titulo ?? "",
+            email: c.email,
+            daysInStage: calcDaysInStage(c.data_candidatura),
+            stacks: [...(c.hard_skills ?? []), ...(c.soft_skills ?? [])],
+          })
+        );
+        setCandidates(mapped);
+      })
+      .catch(() => setError("Erro ao carregar candidatos."))
+      .finally(() => setLoading(false));
+  }, [selectedVagaId, vagas, API_URL]);
+
+  useEffect(() => {
+    fetchCandidatos();
+  }, [fetchCandidatos]);
+
+  // ── Avançar etapa (atualiza backend + estado local) ──────────────────────
+  const moveToNextStage = async (id: number) => {
+    const candidate = candidates.find((c) => c.id === id);
+    if (!candidate) return;
+
+    const currentIdx = STAGE_ORDER.indexOf(candidate.stage);
+    const nextStage = STAGE_ORDER[currentIdx + 1];
+    if (!nextStage) return;
+
+    const novoStatus = STAGE_TO_STATUS[nextStage];
+
+    try {
+      const res = await fetch(
+        `${API_URL}/recrutador/candidaturas/${id}/status`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: novoStatus }),
+        }
+      );
+      if (!res.ok) throw new Error();
+
+      setCandidates((prev) =>
+        prev.map((c) =>
+          c.id === id ? { ...c, stage: nextStage, daysInStage: 0 } : c
+        )
+      );
+      setSelectedCandidate((prev) =>
+        prev?.id === id ? { ...prev, stage: nextStage, daysInStage: 0 } : prev
+      );
+    } catch {
+      alert("Erro ao atualizar status. Tente novamente.");
+    }
   };
 
-  const discard = (id: number) => {
-    setCandidates((prev) => prev.filter((c) => c.id !== id));
-    if (selectedCandidate?.id === id) setSelectedCandidate(null);
+  // ── Descartar candidato (status REJEITADO) ───────────────────────────────
+  const discard = async (id: number) => {
+    try {
+      const res = await fetch(
+        `${API_URL}/recrutador/candidaturas/${id}/status`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "REJEITADO" }),
+        }
+      );
+      if (!res.ok) throw new Error();
+
+      setCandidates((prev) => prev.filter((c) => c.id !== id));
+      if (selectedCandidate?.id === id) setSelectedCandidate(null);
+    } catch {
+      alert("Erro ao descartar candidato. Tente novamente.");
+    }
   };
 
   const getColumn = (stage: Stage) => candidates.filter((c) => c.stage === stage);
-
   const totalCandidates = candidates.length;
   const contratados = candidates.filter((c) => c.stage === "Contratado").length;
 
@@ -374,7 +491,7 @@ export default function PipelinePage() {
       <main className="max-w-[1400px] mx-auto px-6 py-12">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-6">
           <div>
             <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">
               Pipeline de Candidatos
@@ -403,47 +520,96 @@ export default function PipelinePage() {
           </div>
         </div>
 
-        {/* Kanban */}
-        <div className="flex gap-4 overflow-x-auto pb-8">
-          {STAGES.map((stage) => {
-            const columnCandidates = getColumn(stage.key);
-            const Icon = stage.icon;
+        {/* Seletor de vaga + refresh */}
+        <div className="flex items-center gap-3 mb-8">
+          <div className="relative">
+            <select
+              value={selectedVagaId ?? ""}
+              onChange={(e) => setSelectedVagaId(Number(e.target.value))}
+              className="appearance-none bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-xl py-2.5 pl-4 pr-10 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white transition"
+            >
+              {vagas.length === 0 && (
+                <option value="">Nenhuma vaga encontrada</option>
+              )}
+              {vagas.map((v) => (
+                <option key={v.id} value={v.id}>{v.titulo}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
 
-            return (
-              <div key={stage.key} className="flex-shrink-0 w-72 flex flex-col">
-                {/* Cabeçalho da coluna */}
-                <div className={`flex items-center justify-between px-4 py-3 rounded-xl border mb-3 ${stage.bg} ${stage.border}`}>
-                  <div className="flex items-center gap-2">
-                    <Icon className={`w-4 h-4 ${stage.color}`} />
-                    <span className={`text-sm font-black ${stage.color}`}>{stage.label}</span>
-                  </div>
-                  <span className={`text-sm font-black ${stage.color} bg-white/60 dark:bg-black/20 rounded-full w-6 h-6 flex items-center justify-center`}>
-                    {columnCandidates.length}
-                  </span>
-                </div>
-
-                {/* Cards */}
-                <div className="flex flex-col gap-3 flex-1">
-                  {columnCandidates.length === 0 ? (
-                    <div className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-8 text-center">
-                      <p className="text-xs text-slate-400 font-medium">Nenhum candidato</p>
-                    </div>
-                  ) : (
-                    columnCandidates.map((c) => (
-                      <CandidateCard
-                        key={c.id}
-                        candidate={c}
-                        onMove={moveToNextStage}
-                        onDiscard={discard}
-                        onClick={setSelectedCandidate}
-                      />
-                    ))
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          <button
+            onClick={fetchCandidatos}
+            disabled={loading}
+            className="p-2.5 bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-xl text-slate-400 hover:text-indigo-500 hover:border-indigo-300 transition disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
         </div>
+
+        {/* Estado de erro */}
+        {error && (
+          <div className="flex items-center gap-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-xl p-4 mb-6 text-rose-600 dark:text-rose-400 text-sm font-medium">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            {error}
+          </div>
+        )}
+
+        {/* Loading skeleton */}
+        {loading && candidates.length === 0 && (
+          <div className="flex gap-4 overflow-x-auto pb-8">
+            {STAGES.map((s) => (
+              <div key={s.key} className="flex-shrink-0 w-72">
+                <div className={`h-12 rounded-xl mb-3 animate-pulse ${s.bg}`} />
+                {[1, 2].map((i) => (
+                  <div key={i} className="h-28 bg-slate-100 dark:bg-slate-800 rounded-xl mb-3 animate-pulse" />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Kanban */}
+        {!loading && (
+          <div className="flex gap-4 overflow-x-auto pb-8">
+            {STAGES.map((stage) => {
+              const columnCandidates = getColumn(stage.key);
+              const Icon = stage.icon;
+
+              return (
+                <div key={stage.key} className="flex-shrink-0 w-72 flex flex-col">
+                  <div className={`flex items-center justify-between px-4 py-3 rounded-xl border mb-3 ${stage.bg} ${stage.border}`}>
+                    <div className="flex items-center gap-2">
+                      <Icon className={`w-4 h-4 ${stage.color}`} />
+                      <span className={`text-sm font-black ${stage.color}`}>{stage.label}</span>
+                    </div>
+                    <span className={`text-sm font-black ${stage.color} bg-white/60 dark:bg-black/20 rounded-full w-6 h-6 flex items-center justify-center`}>
+                      {columnCandidates.length}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-3 flex-1">
+                    {columnCandidates.length === 0 ? (
+                      <div className="border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-8 text-center">
+                        <p className="text-xs text-slate-400 font-medium">Nenhum candidato</p>
+                      </div>
+                    ) : (
+                      columnCandidates.map((c) => (
+                        <CandidateCard
+                          key={c.id}
+                          candidate={c}
+                          onMove={moveToNextStage}
+                          onDiscard={discard}
+                          onClick={setSelectedCandidate}
+                        />
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </main>
 
       {selectedCandidate && (

@@ -94,3 +94,33 @@ class PerfilUpdate(BaseModel):
     portfolio: str
     about: str
     profilePicture: Optional[str] = ""
+
+# ── Recrutador — Vagas ────────────────────────────────────────────────────────
+
+class VagaCreate(BaseModel):
+    recrutador_id: int
+    titulo: str
+    departamento: Optional[str] = "" # Adicionado
+    descricao: str
+    requisitos: Optional[str] = ""
+    modalidade: str = "PRESENCIAL"
+    localizacao: Optional[str] = ""
+    faixa_salarial: Optional[str] = ""
+
+
+class VagaUpdate(BaseModel):
+    recrutador_id: int
+    titulo: str
+    departamento: Optional[str] = "" # Adicionado
+    descricao: str
+    requisitos: Optional[str] = ""
+    modalidade: str = "PRESENCIAL"
+    localizacao: Optional[str] = ""
+    faixa_salarial: Optional[str] = ""
+    status: str = "ABERTA"
+
+
+# ── Recrutador — Candidaturas ─────────────────────────────────────────────────
+
+class CandidaturaStatusUpdate(BaseModel):
+    status: str 

@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS vagas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     recrutador_id INT NOT NULL,
     titulo VARCHAR(255) NOT NULL,
+    departamento VARCHAR(255),
     descricao TEXT NOT NULL,
     requisitos TEXT,
     modalidade ENUM('PRESENCIAL', 'HIBRIDO', 'REMOTO') NOT NULL DEFAULT 'PRESENCIAL',
