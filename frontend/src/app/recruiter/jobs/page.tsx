@@ -15,7 +15,7 @@ type JobStatus = "Aberta" | "Pausada" | "Fechada";
 interface Job {
   id: number;
   title: string;
-  department: string;
+  department: string; // Adicionado
   location: string;
   workMode: WorkMode;
   contractType: ContractType;
@@ -34,7 +34,7 @@ const INITIAL_JOBS: Job[] = [];
 
 const EMPTY_FORM: Omit<Job, "id" | "applicants" | "createdAt"> = {
   title: "",
-  department: "",
+  department: "", // Adicionado
   location: "",
   workMode: "Remoto",
   contractType: "CLT",
@@ -109,7 +109,7 @@ function JobModal({
   onClose: () => void;
   onSave: (data: Omit<Job, "id" | "applicants" | "createdAt">) => void;
 }) {
-  const [form, setForm] = useState<Omit<Job, "id" | "applicants" | "createdAt">>(
+  const [form, setForm] = useState<Omit<Job, "id" | "applicants" | "createdAt"> | Partial<Job>>(
     job
       ? {
           title: job.title ?? "",
@@ -126,14 +126,14 @@ function JobModal({
       : { ...EMPTY_FORM }
   );
 
-  const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof typeof EMPTY_FORM, string>>>({});
 
   const validate = () => {
     const e: typeof errors = {};
-    if (!form.title.trim()) e.title = "Obrigatório";
-    if (!form.department.trim()) e.department = "Obrigatório";
-    if (!form.location.trim()) e.location = "Obrigatório";
-    if (!form.description.trim()) e.description = "Obrigatório";
+    if (!form.title?.trim()) e.title = "Obrigatório";
+    if (!form.department?.trim()) e.department = "Obrigatório";
+    if (!form.location?.trim()) e.location = "Obrigatório";
+    if (!form.description?.trim()) e.description = "Obrigatório";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -142,7 +142,7 @@ function JobModal({
     setForm((f) => ({ ...f, [k]: v }));
 
   const handleSave = () => {
-    if (validate()) onSave(form);
+    if (validate()) onSave(form as Omit<Job, "id" | "applicants" | "createdAt">);
   };
 
   return (
@@ -388,21 +388,24 @@ export default function JobsPage() {
       .then(res => res.json())
       .then(data => {
         if (data.vagas) {
-          setJobs(data.vagas.map((v: any) => ({
-            id: v.id,
-            title: v.titulo,
-            department: "",
-            location: v.localizacao || "Não informado",
-            workMode: (v.modalidade === "REMOTO" ? "Remoto" : v.modalidade === "HIBRIDO" ? "Híbrido" : "Presencial") as WorkMode,
-            contractType: "CLT" as ContractType,
-            salaryMin: v.faixa_salarial?.split("-")[0] || "",
-            salaryMax: v.faixa_salarial?.split("-")[1] || "",
-            status: (v.status === "ABERTA" ? "Aberta" : v.status === "PAUSADA" ? "Pausada" : "Fechada") as JobStatus,
-            description: v.descricao || "",
-            requirements: v.requisitos || "",
-            applicants: v.total_candidatos || 0,
-            createdAt: v.criado_em?.split("T")[0] || new Date().toISOString().split("T")[0],
-          })));
+          setJobs(data.vagas.map((v: any) => {
+            const salaryParts = v.faixa_salarial ? v.faixa_salarial.split("-") : [];
+            return {
+              id: v.id,
+              title: v.titulo,
+              department: v.departamento || "", // Adicionado
+              location: v.localizacao || "Não informado",
+              workMode: (v.modalidade === "REMOTO" ? "Remoto" : v.modalidade === "HIBRIDO" ? "Híbrido" : "Presencial") as WorkMode,
+              contractType: "CLT" as ContractType,
+              salaryMin: salaryParts[0]?.trim() || "",
+              salaryMax: salaryParts[1]?.trim() || "",
+              status: (v.status === "ABERTA" ? "Aberta" : v.status === "PAUSADA" ? "Pausada" : "Fechada") as JobStatus,
+              description: v.descricao || "",
+              requirements: v.requisitos || "",
+              applicants: v.total_candidatos || 0,
+              createdAt: v.criado_em?.split("T")[0] || new Date().toISOString().split("T")[0],
+            };
+          }));
         }
       })
       .catch(err => console.error("Erro ao carregar vagas:", err));
@@ -431,6 +434,7 @@ export default function JobsPage() {
           body: JSON.stringify({
             recrutador_id: Number(recrutadorId),
             titulo: data.title,
+            departamento: data.department, // Adicionado
             descricao: data.description,
             requisitos: data.requirements,
             modalidade: modalidadeMap[data.workMode] || "PRESENCIAL",
@@ -451,6 +455,7 @@ export default function JobsPage() {
           body: JSON.stringify({
             recrutador_id: Number(recrutadorId),
             titulo: data.title,
+            departamento: data.department, // Adicionado
             descricao: data.description,
             requisitos: data.requirements,
             modalidade: modalidadeMap[data.workMode] || "PRESENCIAL",

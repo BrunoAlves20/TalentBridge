@@ -100,6 +100,7 @@ class PerfilUpdate(BaseModel):
 class VagaCreate(BaseModel):
     recrutador_id: int
     titulo: str
+    departamento: Optional[str] = "" # Adicionado
     descricao: str
     requisitos: Optional[str] = ""
     modalidade: str = "PRESENCIAL"
@@ -110,6 +111,7 @@ class VagaCreate(BaseModel):
 class VagaUpdate(BaseModel):
     recrutador_id: int
     titulo: str
+    departamento: Optional[str] = "" # Adicionado
     descricao: str
     requisitos: Optional[str] = ""
     modalidade: str = "PRESENCIAL"
