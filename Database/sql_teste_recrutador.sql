@@ -4,7 +4,7 @@
 USE talentbridge;
 
 -- Inserts para usuários recrutadores (IDs 1 e 2)
-INSERT INTO usuarios (id, nome, email, senha, tipo_usuario) VALUES
+INSERT INTO usuarios (id, nome, email, senha_hash, tipo_usuario) VALUES
 (1, 'Recrutador Alpha', 'recrutador1@example.com', '$2b$12$RxZk0OCKvQDONvlFy49w5uHOAPUqEDJzCcOJj/eiAHYCubrDgKIMG', 'RECRUTADOR'),
 (2, 'Recrutador Beta', 'recrutador2@example.com', '$2b$12$RxZk0OCKvQDONvlFy49w5uHOAPUqEDJzCcOJj/eiAHYCubrDgKIMG', 'RECRUTADOR');
 
