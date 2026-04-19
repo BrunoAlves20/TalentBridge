@@ -8,17 +8,20 @@ import {
   ChevronDown
 } from "lucide-react";
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 type Stage = "Triagem" | "Teste Técnico" | "Entrevista" | "Proposta" | "Contratado";
 
-// Status que vêm do backend → mapeados para Stage do kanban
+// ✅ CORRIGIDO: "Contratado" → "APROVADO" (ENUM do banco não tem CONTRATADO)
+// O banco aceita: ENVIADO | EM_ANALISE | ENTREVISTA | APROVADO | REJEITADO
 const STATUS_TO_STAGE: Record<string, Stage> = {
   ENVIADO:    "Triagem",
   EM_ANALISE: "Teste Técnico",
   ENTREVISTA: "Entrevista",
-  APROVADO:   "Proposta",
-  CONTRATADO: "Contratado",
+  APROVADO:   "Contratado",   // ✅ APROVADO = última etapa positiva = "Contratado" no kanban
+  REJEITADO:  "Triagem",      // descartados não aparecem (filtrados no backend)
 };
 
 const STAGE_TO_STATUS: Record<Stage, string> = {
@@ -26,11 +29,11 @@ const STAGE_TO_STATUS: Record<Stage, string> = {
   "Teste Técnico": "EM_ANALISE",
   "Entrevista":    "ENTREVISTA",
   "Proposta":      "APROVADO",
-  "Contratado":    "CONTRATADO",
+  "Contratado":    "APROVADO",  // ✅ ambos mapeiam para APROVADO — "Contratado" é o estado final
 };
 
 interface PipelineCandidate {
-  id: number;           // candidatura_id
+  id: number;
   usuarioId: number;
   name: string;
   role: string;
@@ -50,7 +53,14 @@ interface Vaga {
 
 // ─── Config das colunas ───────────────────────────────────────────────────────
 
-const STAGES: { key: Stage; label: string; color: string; icon: React.ElementType; bg: string; border: string }[] = [
+const STAGES: {
+  key: Stage;
+  label: string;
+  color: string;
+  icon: React.ElementType;
+  bg: string;
+  border: string;
+}[] = [
   {
     key: "Triagem",
     label: "Triagem",
@@ -93,7 +103,13 @@ const STAGES: { key: Stage; label: string; color: string; icon: React.ElementTyp
   },
 ];
 
-const STAGE_ORDER: Stage[] = ["Triagem", "Teste Técnico", "Entrevista", "Proposta", "Contratado"];
+const STAGE_ORDER: Stage[] = [
+  "Triagem",
+  "Teste Técnico",
+  "Entrevista",
+  "Proposta",
+  "Contratado",
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -136,10 +152,7 @@ function CandidateCard({
       onClick={() => onClick(candidate)}
     >
       {/* Ações */}
-      <div
-        className="absolute top-3 right-3"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white transition opacity-0 group-hover:opacity-100"
@@ -184,10 +197,7 @@ function CandidateCard({
       {/* Stacks */}
       <div className="flex gap-1 flex-wrap mb-3">
         {candidate.stacks.slice(0, 2).map((s) => (
-          <span
-            key={s}
-            className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded text-[10px] font-bold"
-          >
+          <span key={s} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded text-[10px] font-bold">
             {s}
           </span>
         ))}
@@ -196,9 +206,7 @@ function CandidateCard({
       {/* Footer do card */}
       <div className="flex items-center justify-between">
         <span className={`text-[11px] font-bold ${warningDays(candidate.daysInStage)}`}>
-          {candidate.daysInStage === 0
-            ? "Hoje"
-            : `${candidate.daysInStage}d nesta etapa`}
+          {candidate.daysInStage === 0 ? "Hoje" : `${candidate.daysInStage}d nesta etapa`}
         </span>
         <span className={`text-sm font-black ${scoreColor(candidate.matchScore)}`}>
           {candidate.matchScore}%
@@ -292,15 +300,11 @@ function CandidateDetail({
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-50 dark:bg-[#1A1D2D]/50 rounded-xl p-4 border border-slate-100 dark:border-slate-800/50">
               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Match</p>
-              <p className={`text-3xl font-black ${scoreColor(candidate.matchScore)}`}>
-                {candidate.matchScore}%
-              </p>
+              <p className={`text-3xl font-black ${scoreColor(candidate.matchScore)}`}>{candidate.matchScore}%</p>
             </div>
             <div className="bg-slate-50 dark:bg-[#1A1D2D]/50 rounded-xl p-4 border border-slate-100 dark:border-slate-800/50">
               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-1">Nesta etapa</p>
-              <p className={`text-3xl font-black ${warningDays(candidate.daysInStage)}`}>
-                {candidate.daysInStage}d
-              </p>
+              <p className={`text-3xl font-black ${warningDays(candidate.daysInStage)}`}>{candidate.daysInStage}d</p>
             </div>
           </div>
 
@@ -319,10 +323,7 @@ function CandidateDetail({
           {/* Email */}
           <div>
             <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-3">Contato</p>
-            <a
-              href={`mailto:${candidate.email}`}
-              className="flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
-            >
+            <a href={`mailto:${candidate.email}`} className="flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 font-bold hover:underline">
               <Mail className="w-4 h-4" />
               {candidate.email}
             </a>
@@ -355,8 +356,6 @@ function CandidateDetail({
 // ─── Page principal ───────────────────────────────────────────────────────────
 
 export default function PipelinePage() {
-  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
-
   const [candidates, setCandidates] = useState<PipelineCandidate[]>([]);
   const [vagas, setVagas] = useState<Vaga[]>([]);
   const [selectedVagaId, setSelectedVagaId] = useState<number | null>(null);
@@ -381,7 +380,7 @@ export default function PipelinePage() {
         if (lista.length > 0) setSelectedVagaId(lista[0].id);
       })
       .catch(() => setError("Não foi possível carregar as vagas."));
-  }, [recrutadorId, API_URL]);
+  }, [recrutadorId]);
 
   // ── Carrega candidatos da vaga selecionada ───────────────────────────────
   const fetchCandidatos = useCallback(() => {
@@ -409,7 +408,7 @@ export default function PipelinePage() {
             name: c.nome,
             role: "Candidato",
             location: [c.cidade, c.estado].filter(Boolean).join(", ") || "—",
-            matchScore: 0, // pipeline não calcula score, use ranking para isso
+            matchScore: 0,
             stage: STATUS_TO_STAGE[c.status_candidatura] ?? "Triagem",
             appliedJob: vagas.find((v) => v.id === selectedVagaId)?.titulo ?? "",
             email: c.email,
@@ -421,13 +420,11 @@ export default function PipelinePage() {
       })
       .catch(() => setError("Erro ao carregar candidatos."))
       .finally(() => setLoading(false));
-  }, [selectedVagaId, vagas, API_URL]);
+  }, [selectedVagaId, vagas]);
 
-  useEffect(() => {
-    fetchCandidatos();
-  }, [fetchCandidatos]);
+  useEffect(() => { fetchCandidatos(); }, [fetchCandidatos]);
 
-  // ── Avançar etapa (atualiza backend + estado local) ──────────────────────
+  // ── Avançar etapa ────────────────────────────────────────────────────────
   const moveToNextStage = async (id: number) => {
     const candidate = candidates.find((c) => c.id === id);
     if (!candidate) return;
@@ -436,23 +433,19 @@ export default function PipelinePage() {
     const nextStage = STAGE_ORDER[currentIdx + 1];
     if (!nextStage) return;
 
+    // ✅ CORRIGIDO: usa o mapa corrigido — nunca envia "CONTRATADO"
     const novoStatus = STAGE_TO_STATUS[nextStage];
 
     try {
-      const res = await fetch(
-        `${API_URL}/recrutador/candidaturas/${id}/status`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: novoStatus }),
-        }
-      );
+      const res = await fetch(`${API_URL}/recrutador/candidaturas/${id}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: novoStatus }),
+      });
       if (!res.ok) throw new Error();
 
       setCandidates((prev) =>
-        prev.map((c) =>
-          c.id === id ? { ...c, stage: nextStage, daysInStage: 0 } : c
-        )
+        prev.map((c) => (c.id === id ? { ...c, stage: nextStage, daysInStage: 0 } : c))
       );
       setSelectedCandidate((prev) =>
         prev?.id === id ? { ...prev, stage: nextStage, daysInStage: 0 } : prev
@@ -462,19 +455,15 @@ export default function PipelinePage() {
     }
   };
 
-  // ── Descartar candidato (status REJEITADO) ───────────────────────────────
+  // ── Descartar candidato ──────────────────────────────────────────────────
   const discard = async (id: number) => {
     try {
-      const res = await fetch(
-        `${API_URL}/recrutador/candidaturas/${id}/status`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "REJEITADO" }),
-        }
-      );
+      const res = await fetch(`${API_URL}/recrutador/candidaturas/${id}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "REJEITADO" }),
+      });
       if (!res.ok) throw new Error();
-
       setCandidates((prev) => prev.filter((c) => c.id !== id));
       if (selectedCandidate?.id === id) setSelectedCandidate(null);
     } catch {
@@ -497,7 +486,7 @@ export default function PipelinePage() {
               Pipeline de Candidatos
             </h1>
             <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">
-              {totalCandidates} candidatos ativos · {contratados} contratados
+              {totalCandidates} candidatos ativos · {contratados} aprovados
             </p>
           </div>
 
@@ -507,10 +496,7 @@ export default function PipelinePage() {
               const count = getColumn(s.key).length;
               const Icon = s.icon;
               return (
-                <div
-                  key={s.key}
-                  className={`hidden lg:flex flex-col items-center px-4 py-2.5 rounded-xl border ${s.bg} ${s.border}`}
-                >
+                <div key={s.key} className={`hidden lg:flex flex-col items-center px-4 py-2.5 rounded-xl border ${s.bg} ${s.border}`}>
                   <Icon className={`w-4 h-4 ${s.color} mb-1`} />
                   <span className={`text-lg font-black ${s.color}`}>{count}</span>
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{s.label}</span>
@@ -528,9 +514,7 @@ export default function PipelinePage() {
               onChange={(e) => setSelectedVagaId(Number(e.target.value))}
               className="appearance-none bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-xl py-2.5 pl-4 pr-10 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white transition"
             >
-              {vagas.length === 0 && (
-                <option value="">Nenhuma vaga encontrada</option>
-              )}
+              {vagas.length === 0 && <option value="">Nenhuma vaga encontrada</option>}
               {vagas.map((v) => (
                 <option key={v.id} value={v.id}>{v.titulo}</option>
               ))}
