@@ -23,13 +23,14 @@ def criar_vaga(dados: VagaCreate):
     try:
         cursor.execute(
             """
-            INSERT INTO vagas (recrutador_id, titulo, descricao, requisitos,
+            INSERT INTO vagas (recrutador_id, titulo, departamento, descricao, requisitos,
                                modalidade, localizacao, faixa_salarial, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, 'ABERTA')
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ABERTA')
             """,
             (
                 dados.recrutador_id,
                 dados.titulo,
+                dados.departamento,   # ✅ CORRIGIDO: campo estava faltando
                 dados.descricao,
                 dados.requisitos,
                 dados.modalidade,
@@ -67,12 +68,13 @@ def editar_vaga(vaga_id: int, dados: VagaUpdate):
         cursor.execute(
             """
             UPDATE vagas
-            SET titulo = %s, descricao = %s, requisitos = %s,
+            SET titulo = %s, departamento = %s, descricao = %s, requisitos = %s,
                 modalidade = %s, localizacao = %s, faixa_salarial = %s, status = %s
             WHERE id = %s
             """,
             (
                 dados.titulo,
+                dados.departamento,   # ✅ CORRIGIDO: campo estava faltando
                 dados.descricao,
                 dados.requisitos,
                 dados.modalidade,
@@ -114,12 +116,10 @@ def deletar_vaga(vaga_id: int, recrutador_id: int):
         if not cursor.fetchone():
             raise HTTPException(status_code=404, detail="Vaga não encontrada ou sem permissão.")
 
-        # Arquiva candidaturas antes de deletar (integridade referencial)
         cursor.execute(
             "UPDATE candidaturas SET status = 'REJEITADO' WHERE vaga_id = %s",
             (vaga_id,),
         )
-
         cursor.execute("DELETE FROM vagas WHERE id = %s", (vaga_id,))
         conn.commit()
         return {"mensagem": "Vaga excluída com sucesso!"}
@@ -148,7 +148,7 @@ def listar_vagas_do_recrutador(recrutador_id: int):
     try:
         cursor.execute(
             """
-            SELECT v.id, v.titulo, v.descricao, v.requisitos, v.modalidade,
+            SELECT v.id, v.titulo, v.departamento, v.descricao, v.requisitos, v.modalidade,
                    v.localizacao, v.faixa_salarial, v.status, v.criado_em,
                    COUNT(c.id) AS total_candidatos
             FROM vagas v
@@ -161,7 +161,6 @@ def listar_vagas_do_recrutador(recrutador_id: int):
         )
         vagas = cursor.fetchall()
 
-        # Serializa datetime para string
         for vaga in vagas:
             if vaga.get("criado_em"):
                 vaga["criado_em"] = vaga["criado_em"].isoformat()
@@ -209,14 +208,13 @@ def listar_candidatos_da_vaga(vaga_id: int):
             FROM candidaturas c
             JOIN usuarios u ON u.id = c.candidato_id
             LEFT JOIN perfis_candidatos p ON p.usuario_id = c.candidato_id
-            WHERE c.vaga_id = %s
+            WHERE c.vaga_id = %s AND c.status != 'REJEITADO'
             ORDER BY c.data_candidatura DESC
             """,
             (vaga_id,),
         )
         candidatos_raw = cursor.fetchall()
 
-        # Busca as skills de cada candidato
         resultado = []
         for cand in candidatos_raw:
             usuario_id = cand["usuario_id"]
@@ -246,8 +244,11 @@ def listar_candidatos_da_vaga(vaga_id: int):
 
 
 # ==============================================================================
-# STATUS DA CANDIDATURA (avançar pipeline / descartar)
+# STATUS DA CANDIDATURA
 # ==============================================================================
+
+# ✅ Status válidos do banco: ENVIADO | EM_ANALISE | ENTREVISTA | APROVADO | REJEITADO
+STATUSES_VALIDOS = {"ENVIADO", "EM_ANALISE", "ENTREVISTA", "APROVADO", "REJEITADO"}
 
 @router.put("/candidaturas/{candidatura_id}/status")
 def atualizar_status_candidatura(candidatura_id: int, dados: CandidaturaStatusUpdate):
@@ -255,6 +256,13 @@ def atualizar_status_candidatura(candidatura_id: int, dados: CandidaturaStatusUp
     Atualiza o status de uma candidatura.
     Status válidos: ENVIADO | EM_ANALISE | ENTREVISTA | APROVADO | REJEITADO
     """
+    # ✅ CORRIGIDO: valida o status antes de enviar ao banco
+    if dados.status not in STATUSES_VALIDOS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Status inválido. Use um de: {', '.join(STATUSES_VALIDOS)}"
+        )
+
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
@@ -291,9 +299,7 @@ def atualizar_status_candidatura(candidatura_id: int, dados: CandidaturaStatusUp
 @router.get("/dashboard/{recrutador_id}")
 def obter_dashboard(recrutador_id: int):
     """
-    Retorna dados agregados para o Dashboard do recrutador:
-    total de vagas abertas, total de candidatos, candidatos por etapa
-    do pipeline e taxa de conversão.
+    Retorna dados agregados para o Dashboard do recrutador.
     """
     conn = get_db_connection()
     if not conn:
@@ -301,7 +307,6 @@ def obter_dashboard(recrutador_id: int):
 
     cursor = conn.cursor(dictionary=True)
     try:
-        # Total de vagas por status
         cursor.execute(
             """
             SELECT status, COUNT(*) AS total
@@ -313,7 +318,6 @@ def obter_dashboard(recrutador_id: int):
         )
         vagas_por_status = {row["status"]: row["total"] for row in cursor.fetchall()}
 
-        # Candidatos por etapa do pipeline (apenas vagas deste recrutador)
         cursor.execute(
             """
             SELECT c.status, COUNT(*) AS total
@@ -330,7 +334,6 @@ def obter_dashboard(recrutador_id: int):
         aprovados = candidatos_por_etapa.get("APROVADO", 0)
         taxa_conversao = round((aprovados / total_candidatos * 100), 1) if total_candidatos > 0 else 0.0
 
-        # Candidatos recentes (últimos 5)
         cursor.execute(
             """
             SELECT u.id AS usuario_id, u.nome, u.email,
@@ -374,10 +377,7 @@ def obter_dashboard(recrutador_id: int):
 @router.get("/ranking/{recrutador_id}")
 def obter_ranking(recrutador_id: int, vaga_id: int = None):
     """
-    Lista candidatos ordenados por match score em relação às vagas do recrutador.
-    O match score é calculado pela proporção de hard_skills do candidato
-    que batem com os requisitos da vaga.
-    Aceita filtro opcional por vaga_id.
+    Lista candidatos ordenados por match score.
     """
     conn = get_db_connection()
     if not conn:
@@ -385,7 +385,6 @@ def obter_ranking(recrutador_id: int, vaga_id: int = None):
 
     cursor = conn.cursor(dictionary=True)
     try:
-        # Busca vagas do recrutador (com filtro opcional)
         if vaga_id:
             cursor.execute(
                 "SELECT id, titulo, requisitos FROM vagas WHERE recrutador_id = %s AND id = %s",
@@ -401,7 +400,6 @@ def obter_ranking(recrutador_id: int, vaga_id: int = None):
         if not vagas:
             return {"ranking": []}
 
-        # Busca todos os candidatos com candidatura nessas vagas
         ids_vagas = [v["id"] for v in vagas]
         placeholders = ",".join(["%s"] * len(ids_vagas))
 
@@ -414,13 +412,12 @@ def obter_ranking(recrutador_id: int, vaga_id: int = None):
             FROM candidaturas c
             JOIN usuarios u ON u.id = c.candidato_id
             LEFT JOIN perfis_candidatos p ON p.usuario_id = c.candidato_id
-            WHERE c.vaga_id IN ({placeholders})
+            WHERE c.vaga_id IN ({placeholders}) AND c.status != 'REJEITADO'
             """,
             ids_vagas,
         )
         candidatos = cursor.fetchall()
 
-        # Calcula match score para cada candidato x vaga
         resultado = []
         vagas_dict = {v["id"]: v for v in vagas}
 
@@ -429,7 +426,6 @@ def obter_ranking(recrutador_id: int, vaga_id: int = None):
             vaga = vagas_dict.get(cand["vaga_id"], {})
             requisitos_vaga = vaga.get("requisitos", "") or ""
 
-            # Hard skills do candidato
             cursor.execute(
                 "SELECT nome FROM hard_skills WHERE usuario_id = %s", (usuario_id,)
             )
@@ -440,7 +436,6 @@ def obter_ranking(recrutador_id: int, vaga_id: int = None):
             )
             soft_skills = [row["nome"] for row in cursor.fetchall()]
 
-            # Match: quantas skills do candidato aparecem nos requisitos da vaga
             requisitos_lower = requisitos_vaga.lower()
             matches = [s for s in hard_skills if s in requisitos_lower]
             match_score = round(len(matches) / len(hard_skills) * 100) if hard_skills else 0
@@ -463,9 +458,7 @@ def obter_ranking(recrutador_id: int, vaga_id: int = None):
                 "match_score": match_score,
             })
 
-        # Ordena por match_score decrescente
         resultado.sort(key=lambda x: x["match_score"], reverse=True)
-
         return {"ranking": resultado, "vagas_filtradas": [v["titulo"] for v in vagas]}
 
     except Exception as e:

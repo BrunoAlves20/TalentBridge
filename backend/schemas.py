@@ -79,6 +79,7 @@ class RedefinirSenhaRequest(BaseModel):
     codigo: str
     nova_senha: str
 
+
 class PerfilUpdate(BaseModel):
     usuario_id: int
     fullName: str
@@ -95,12 +96,13 @@ class PerfilUpdate(BaseModel):
     about: str
     profilePicture: Optional[str] = ""
 
+
 # ── Recrutador — Vagas ────────────────────────────────────────────────────────
 
 class VagaCreate(BaseModel):
     recrutador_id: int
     titulo: str
-    departamento: Optional[str] = "" # Adicionado
+    departamento: Optional[str] = ""   # ✅ presente no schema
     descricao: str
     requisitos: Optional[str] = ""
     modalidade: str = "PRESENCIAL"
@@ -111,16 +113,24 @@ class VagaCreate(BaseModel):
 class VagaUpdate(BaseModel):
     recrutador_id: int
     titulo: str
-    departamento: Optional[str] = "" # Adicionado
+    departamento: Optional[str] = ""   # ✅ presente no schema
     descricao: str
     requisitos: Optional[str] = ""
     modalidade: str = "PRESENCIAL"
     localizacao: Optional[str] = ""
     faixa_salarial: Optional[str] = ""
-    status: str = "ABERTA"
+    status: str = "ABERTA"             # ✅ valores válidos: ABERTA | PAUSADA | ENCERRADA
 
 
 # ── Recrutador — Candidaturas ─────────────────────────────────────────────────
 
 class CandidaturaStatusUpdate(BaseModel):
-    status: str 
+    # ✅ Valores válidos: ENVIADO | EM_ANALISE | ENTREVISTA | APROVADO | REJEITADO
+    status: str
+
+
+# ── Candidato — Candidaturas ──────────────────────────────────────────────────
+
+class CandidaturaCreate(BaseModel):    # ✅ NOVO
+    vaga_id: int
+    candidato_id: int
