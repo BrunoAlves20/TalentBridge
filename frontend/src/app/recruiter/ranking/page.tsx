@@ -24,8 +24,8 @@ interface Candidate {
   experience: number;
   education: string;
   about: string;
-  strengths: string[];   // skills que batem com a vaga
-  gaps: string[];        // skills da vaga que o candidato não tem
+  strengths: string[];
+  gaps: string[];
   workMode: "Remoto" | "Híbrido" | "Presencial";
 }
 
@@ -147,15 +147,15 @@ function CandidateDrawer({
             </div>
           </div>
 
-          {/* Pontos fortes (skills que batem) */}
+          {/* Pontos fortes */}
           {candidate.strengths.length > 0 && (
             <div>
               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-3">
                 Skills compatíveis com a vaga
               </p>
               <div className="space-y-2">
-                {candidate.strengths.map((s) => (
-                  <div key={s} className="flex items-center gap-2 text-sm">
+                {candidate.strengths.map((s, idx) => (
+                  <div key={`str-${idx}`} className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                     <span className="text-slate-700 dark:text-slate-300">{s}</span>
                   </div>
@@ -171,8 +171,8 @@ function CandidateDrawer({
                 Lacunas Identificadas
               </p>
               <div className="space-y-2">
-                {candidate.gaps.map((g) => (
-                  <div key={g} className="flex items-center gap-2 text-sm">
+                {candidate.gaps.map((g, idx) => (
+                  <div key={`gap-${idx}`} className="flex items-center gap-2 text-sm">
                     <MinusCircle className="w-4 h-4 text-amber-500 shrink-0" />
                     <span className="text-slate-600 dark:text-slate-400">{g}</span>
                   </div>
@@ -187,9 +187,9 @@ function CandidateDrawer({
               Stack Técnica
             </p>
             <div className="flex flex-wrap gap-2">
-              {candidate.stacks.map((s) => (
+              {candidate.stacks.map((s, idx) => (
                 <span
-                  key={s}
+                  key={`dstack-${idx}`}
                   className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-lg text-xs font-bold"
                 >
                   {s}
@@ -205,9 +205,9 @@ function CandidateDrawer({
                 Soft Skills
               </p>
               <div className="flex flex-wrap gap-2">
-                {candidate.softSkills.map((s) => (
+                {candidate.softSkills.map((s, idx) => (
                   <span
-                    key={s}
+                    key={`dssoft-${idx}`}
                     className="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 px-3 py-1 rounded-lg text-xs font-bold"
                   >
                     {s}
@@ -300,7 +300,7 @@ export default function RankingPage() {
             education: "",
             about: c.sobre_mim ?? "",
             strengths: c["skills_compatíveis"] ?? [],
-            gaps: [],   // backend não retorna lacunas; pode ser calculado futuramente
+            gaps: [],
             workMode: "Remoto",
           })
         );
@@ -410,13 +410,13 @@ export default function RankingPage() {
               <Award className="w-3.5 h-3.5" /> Top candidatos
             </p>
             <div className="grid md:grid-cols-3 gap-5">
-              {top3.map((c, i) => (
+              {top3.map((c, idx) => (
                 <button
-                  key={c.candidaturaId}
+                  key={`top-${c.candidaturaId}-${idx}`}
                   onClick={() => setSelectedCandidate(c)}
                   className="relative text-left bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-2xl p-6 hover:border-indigo-300 dark:hover:border-indigo-700/50 transition-all hover:shadow-lg hover:shadow-indigo-500/5 group"
                 >
-                  {i === 0 && (
+                  {idx === 0 && (
                     <div className="absolute -top-3 left-5 bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 shadow">
                       <Star className="w-3 h-3" /> Melhor match
                     </div>
@@ -437,8 +437,8 @@ export default function RankingPage() {
                   </div>
                   <ScoreBar score={c.matchScore} />
                   <div className="flex gap-1.5 mt-4 flex-wrap">
-                    {c.stacks.slice(0, 3).map((s) => (
-                      <span key={s} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded text-[10px] font-bold">
+                    {c.stacks.slice(0, 3).map((s, sIdx) => (
+                      <span key={`tstack-${sIdx}`} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded text-[10px] font-bold">
                         {s}
                       </span>
                     ))}
@@ -480,8 +480,8 @@ export default function RankingPage() {
               }}
               className="appearance-none bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-xl py-3 pl-4 pr-10 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white w-full sm:w-56 transition"
             >
-              {jobOptions.map((j) => (
-                <option key={j} value={j}>{j}</option>
+              {jobOptions.map((j, idx) => (
+                <option key={`job-${idx}`} value={j}>{j}</option>
               ))}
             </select>
             <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -548,7 +548,7 @@ export default function RankingPage() {
             <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
               {filtered.map((c, idx) => (
                 <button
-                  key={c.candidaturaId}
+                  key={`list-${c.candidaturaId}-${idx}`}
                   onClick={() => setSelectedCandidate(c)}
                   className="w-full text-left p-5 hover:bg-slate-50 dark:hover:bg-indigo-500/5 transition group flex items-center gap-5"
                 >
@@ -581,9 +581,9 @@ export default function RankingPage() {
 
                   {/* Stacks */}
                   <div className="hidden lg:flex gap-1.5 flex-wrap max-w-xs">
-                    {c.stacks.slice(0, 4).map((s) => (
+                    {c.stacks.slice(0, 4).map((s, sIdx) => (
                       <span
-                        key={s}
+                        key={`list-stack-${sIdx}`}
                         className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded text-[10px] font-bold"
                       >
                         {s}

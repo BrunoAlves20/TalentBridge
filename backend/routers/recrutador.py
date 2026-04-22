@@ -7,6 +7,8 @@ router = APIRouter(
     tags=["Recrutador"],
 )
 
+# Filtro unificado para candidatos não rejeitados (Resolve o bug de duplicação BE-06)
+FILTRO_CANDIDATOS_ATIVOS = "c.status != 'REJEITADO'"
 
 # ==============================================================================
 # VAGAS
@@ -191,7 +193,7 @@ def listar_candidatos_da_vaga(vaga_id: int):
     cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(
-            """
+            f"""
             SELECT
                 c.id          AS candidatura_id,
                 c.status      AS status_candidatura,
@@ -208,7 +210,7 @@ def listar_candidatos_da_vaga(vaga_id: int):
             FROM candidaturas c
             JOIN usuarios u ON u.id = c.candidato_id
             LEFT JOIN perfis_candidatos p ON p.usuario_id = c.candidato_id
-            WHERE c.vaga_id = %s AND c.status != 'REJEITADO'
+            WHERE c.vaga_id = %s AND {FILTRO_CANDIDATOS_ATIVOS}
             ORDER BY c.data_candidatura DESC
             """,
             (vaga_id,),
@@ -412,7 +414,7 @@ def obter_ranking(recrutador_id: int, vaga_id: int = None):
             FROM candidaturas c
             JOIN usuarios u ON u.id = c.candidato_id
             LEFT JOIN perfis_candidatos p ON p.usuario_id = c.candidato_id
-            WHERE c.vaga_id IN ({placeholders}) AND c.status != 'REJEITADO'
+            WHERE c.vaga_id IN ({placeholders}) AND {FILTRO_CANDIDATOS_ATIVOS}
             """,
             ids_vagas,
         )

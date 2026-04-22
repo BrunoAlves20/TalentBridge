@@ -70,9 +70,6 @@ def listar_vagas_abertas(modalidade: str = None, busca: str = None):
 
 # ==============================================================================
 # VAGAS SALVAS
-# Atenção: estas rotas usam o prefixo /vagas/salvas/* e devem ficar ANTES da
-# rota genérica /{vaga_id} para que o FastAPI não interprete "salvas" como
-# um inteiro de ID.
 # ==============================================================================
 
 @router.post("/salvar", status_code=201)
@@ -176,7 +173,6 @@ def remover_vaga_salva(vaga_id: int, usuario_id: int):
     Remove uma vaga da lista de salvas do candidato.
     O usuario_id é obrigatório via query param para garantir que o candidato
     só possa remover os próprios vínculos.
-    Exemplo: DELETE /vagas/salvas/42?usuario_id=7
     """
     conn = get_db_connection()
     if not conn:
@@ -203,83 +199,6 @@ def remover_vaga_salva(vaga_id: int, usuario_id: int):
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Erro ao remover vaga salva: {str(e)}")
-    finally:
-        cursor.close()
-        conn.close()
-
-
-# ==============================================================================
-# DETALHE DE UMA VAGA
-# Fica depois das rotas /salvas/* para não capturar "salvas" como {vaga_id}
-# ==============================================================================
-
-@router.get("/{vaga_id}")
-def obter_vaga(vaga_id: int, candidato_id: int = None):
-    """
-    Retorna os detalhes completos de uma vaga específica.
-    Se candidato_id for informado, inclui se o candidato já se candidatou
-    e se a vaga está salva.
-    """
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
-
-    cursor = conn.cursor(dictionary=True)
-    try:
-        cursor.execute(
-            """
-            SELECT
-                v.id, v.titulo, v.departamento, v.descricao, v.requisitos,
-                v.modalidade, v.localizacao, v.faixa_salarial, v.status, v.criado_em,
-                u.nome AS nome_recrutador,
-                pr.empresa, pr.site_empresa, pr.foto_perfil AS logo_empresa
-            FROM vagas v
-            JOIN usuarios u ON u.id = v.recrutador_id
-            LEFT JOIN perfis_recrutadores pr ON pr.usuario_id = v.recrutador_id
-            WHERE v.id = %s
-            """,
-            (vaga_id,),
-        )
-        vaga = cursor.fetchone()
-        if not vaga:
-            raise HTTPException(status_code=404, detail="Vaga não encontrada.")
-
-        if vaga.get("criado_em"):
-            vaga["criado_em"] = vaga["criado_em"].isoformat()
-
-        # Valores padrão — sobrescritos se candidato_id for informado
-        vaga["ja_candidatou"] = False
-        vaga["candidatura_id"] = None
-        vaga["status_candidatura"] = None
-        vaga["esta_salva"] = False
-        vaga["salvo_id"] = None
-
-        if candidato_id:
-            cursor.execute(
-                "SELECT id, status FROM candidaturas WHERE vaga_id = %s AND candidato_id = %s",
-                (vaga_id, candidato_id),
-            )
-            row = cursor.fetchone()
-            if row:
-                vaga["ja_candidatou"] = True
-                vaga["candidatura_id"] = row["id"]
-                vaga["status_candidatura"] = row["status"]
-
-            cursor.execute(
-                "SELECT id FROM vagas_salvas WHERE vaga_id = %s AND usuario_id = %s",
-                (vaga_id, candidato_id),
-            )
-            salva = cursor.fetchone()
-            if salva:
-                vaga["esta_salva"] = True
-                vaga["salvo_id"] = salva["id"]
-
-        return vaga
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao obter vaga: {str(e)}")
     finally:
         cursor.close()
         conn.close()
@@ -417,6 +336,78 @@ def cancelar_candidatura(candidatura_id: int, candidato_id: int):
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Erro ao cancelar candidatura: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@router.get("/{vaga_id}")
+def obter_vaga(vaga_id: int, candidato_id: int = None):
+    """
+    Retorna os detalhes completos de uma vaga específica.
+    Se candidato_id for informado, inclui se o candidato já se candidatou
+    e se a vaga está salva.
+    """
+    conn = get_db_connection()
+    if not conn:
+        raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
+
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """
+            SELECT
+                v.id, v.titulo, v.departamento, v.descricao, v.requisitos,
+                v.modalidade, v.localizacao, v.faixa_salarial, v.status, v.criado_em,
+                u.nome AS nome_recrutador,
+                pr.empresa, pr.site_empresa, pr.foto_perfil AS logo_empresa
+            FROM vagas v
+            JOIN usuarios u ON u.id = v.recrutador_id
+            LEFT JOIN perfis_recrutadores pr ON pr.usuario_id = v.recrutador_id
+            WHERE v.id = %s
+            """,
+            (vaga_id,),
+        )
+        vaga = cursor.fetchone()
+        if not vaga:
+            raise HTTPException(status_code=404, detail="Vaga não encontrada.")
+
+        if vaga.get("criado_em"):
+            vaga["criado_em"] = vaga["criado_em"].isoformat()
+
+        # Valores padrão — sobrescritos se candidato_id for informado
+        vaga["ja_candidatou"] = False
+        vaga["candidatura_id"] = None
+        vaga["status_candidatura"] = None
+        vaga["esta_salva"] = False
+        vaga["salvo_id"] = None
+
+        if candidato_id:
+            cursor.execute(
+                "SELECT id, status FROM candidaturas WHERE vaga_id = %s AND candidato_id = %s",
+                (vaga_id, candidato_id),
+            )
+            row = cursor.fetchone()
+            if row:
+                vaga["ja_candidatou"] = True
+                vaga["candidatura_id"] = row["id"]
+                vaga["status_candidatura"] = row["status"]
+
+            cursor.execute(
+                "SELECT id FROM vagas_salvas WHERE vaga_id = %s AND usuario_id = %s",
+                (vaga_id, candidato_id),
+            )
+            salva = cursor.fetchone()
+            if salva:
+                vaga["esta_salva"] = True
+                vaga["salvo_id"] = salva["id"]
+
+        return vaga
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao obter vaga: {str(e)}")
     finally:
         cursor.close()
         conn.close()

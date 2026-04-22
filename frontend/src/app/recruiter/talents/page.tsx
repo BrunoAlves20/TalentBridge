@@ -126,8 +126,8 @@ function CandidatoDrawer({
                 Skills compatíveis com a vaga
               </p>
               <div className="space-y-1.5">
-                {candidato["skills_compatíveis"].map((s) => (
-                  <div key={s} className="flex items-center gap-2 text-sm">
+                {candidato["skills_compatíveis"].map((s, idx) => (
+                  <div key={`sc-${idx}`} className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                     <span className="text-slate-700 dark:text-slate-300">{s}</span>
                   </div>
@@ -141,8 +141,8 @@ function CandidatoDrawer({
             <div>
               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-3">Stack técnica</p>
               <div className="flex flex-wrap gap-2">
-                {candidato.hard_skills.map((s) => (
-                  <span key={s} className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-lg text-xs font-bold">
+                {candidato.hard_skills.map((s, idx) => (
+                  <span key={`chs-${idx}`} className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-lg text-xs font-bold">
                     {s}
                   </span>
                 ))}
@@ -155,8 +155,8 @@ function CandidatoDrawer({
             <div>
               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-3">Soft skills</p>
               <div className="flex flex-wrap gap-2">
-                {candidato.soft_skills.map((s) => (
-                  <span key={s} className="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 px-3 py-1 rounded-lg text-xs font-bold">
+                {candidato.soft_skills.map((s, idx) => (
+                  <span key={`css-${idx}`} className="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 px-3 py-1 rounded-lg text-xs font-bold">
                     {s}
                   </span>
                 ))}
@@ -294,8 +294,8 @@ export default function BancoTalentosPage() {
               className="appearance-none bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-xl py-3 pl-4 pr-10 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white w-full sm:w-56 transition"
             >
               <option value="">Todas as vagas</option>
-              {vagas.map((v) => (
-                <option key={v.id} value={v.id}>{v.titulo}</option>
+              {vagas.map((v, idx) => (
+                <option key={`vaga-${v.id}-${idx}`} value={v.id}>{v.titulo}</option>
               ))}
             </select>
             <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -308,8 +308,8 @@ export default function BancoTalentosPage() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="appearance-none bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-xl py-3 pl-4 pr-10 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white w-full sm:w-44 transition"
             >
-              {statusOptions.map((s) => (
-                <option key={s} value={s}>{s}</option>
+              {statusOptions.map((s, idx) => (
+                <option key={`status-${idx}`} value={s}>{s}</option>
               ))}
             </select>
             <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -336,7 +336,7 @@ export default function BancoTalentosPage() {
         {loading ? (
           <div className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="p-5 border-b border-slate-100 dark:border-slate-800/50 animate-pulse flex gap-4 items-center">
+              <div key={`skel-${i}`} className="p-5 border-b border-slate-100 dark:border-slate-800/50 animate-pulse flex gap-4 items-center">
                 <div className="w-11 h-11 rounded-xl bg-slate-200 dark:bg-slate-800 shrink-0" />
                 <div className="flex-1 space-y-2">
                   <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/4" />
@@ -368,11 +368,11 @@ export default function BancoTalentosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                {filtered.map((c) => {
+                {filtered.map((c, idx) => {
                   const cfg = STATUS_LABEL[c.status_candidatura] ?? STATUS_LABEL.ENVIADO;
                   return (
                     <tr
-                      key={c.candidatura_id}
+                      key={`cand-${c.candidatura_id}-${idx}`}
                       className="hover:bg-slate-50 dark:hover:bg-indigo-500/5 transition group cursor-pointer"
                       onClick={() => setSelected(c)}
                     >
@@ -405,8 +405,8 @@ export default function BancoTalentosPage() {
                       {/* Stack */}
                       <td className="p-5 hidden lg:table-cell">
                         <div className="flex gap-1 flex-wrap">
-                          {c.hard_skills.slice(0, 3).map((s) => (
-                            <span key={s} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded text-[10px] font-bold">
+                          {c.hard_skills.slice(0, 3).map((s, sIdx) => (
+                            <span key={`ths-${sIdx}`} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded text-[10px] font-bold">
                               {s}
                             </span>
                           ))}

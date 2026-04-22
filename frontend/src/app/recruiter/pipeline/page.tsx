@@ -14,14 +14,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 type Stage = "Triagem" | "Teste Técnico" | "Entrevista" | "Proposta" | "Contratado";
 
-// ✅ CORRIGIDO: "Contratado" → "APROVADO" (ENUM do banco não tem CONTRATADO)
-// O banco aceita: ENVIADO | EM_ANALISE | ENTREVISTA | APROVADO | REJEITADO
 const STATUS_TO_STAGE: Record<string, Stage> = {
   ENVIADO:    "Triagem",
   EM_ANALISE: "Teste Técnico",
   ENTREVISTA: "Entrevista",
-  APROVADO:   "Contratado",   // ✅ APROVADO = última etapa positiva = "Contratado" no kanban
-  REJEITADO:  "Triagem",      // descartados não aparecem (filtrados no backend)
+  APROVADO:   "Contratado",
+  REJEITADO:  "Triagem",
 };
 
 const STAGE_TO_STATUS: Record<Stage, string> = {
@@ -29,7 +27,7 @@ const STAGE_TO_STATUS: Record<Stage, string> = {
   "Teste Técnico": "EM_ANALISE",
   "Entrevista":    "ENTREVISTA",
   "Proposta":      "APROVADO",
-  "Contratado":    "APROVADO",  // ✅ ambos mapeiam para APROVADO — "Contratado" é o estado final
+  "Contratado":    "APROVADO",
 };
 
 interface PipelineCandidate {
@@ -196,8 +194,8 @@ function CandidateCard({
 
       {/* Stacks */}
       <div className="flex gap-1 flex-wrap mb-3">
-        {candidate.stacks.slice(0, 2).map((s) => (
-          <span key={s} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded text-[10px] font-bold">
+        {candidate.stacks.slice(0, 2).map((s, idx) => (
+          <span key={`stack-${idx}`} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2 py-0.5 rounded text-[10px] font-bold">
             {s}
           </span>
         ))}
@@ -277,7 +275,7 @@ function CandidateDetail({
                 const isPast = i < currentIdx;
                 const isCurrent = i === currentIdx;
                 return (
-                  <div key={s} className="flex items-center gap-1 shrink-0">
+                  <div key={`stage-${i}`} className="flex items-center gap-1 shrink-0">
                     <div className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wide transition ${
                       isCurrent
                         ? "bg-indigo-600 text-white"
@@ -312,8 +310,8 @@ function CandidateDetail({
           <div>
             <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-3">Stack</p>
             <div className="flex flex-wrap gap-2">
-              {candidate.stacks.map((s) => (
-                <span key={s} className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-lg text-xs font-bold">
+              {candidate.stacks.map((s, idx) => (
+                <span key={`stack-${idx}`} className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-lg text-xs font-bold">
                   {s}
                 </span>
               ))}
@@ -433,7 +431,6 @@ export default function PipelinePage() {
     const nextStage = STAGE_ORDER[currentIdx + 1];
     if (!nextStage) return;
 
-    // ✅ CORRIGIDO: usa o mapa corrigido — nunca envia "CONTRATADO"
     const novoStatus = STAGE_TO_STATUS[nextStage];
 
     try {
@@ -515,8 +512,8 @@ export default function PipelinePage() {
               className="appearance-none bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-xl py-2.5 pl-4 pr-10 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white transition"
             >
               {vagas.length === 0 && <option value="">Nenhuma vaga encontrada</option>}
-              {vagas.map((v) => (
-                <option key={v.id} value={v.id}>{v.titulo}</option>
+              {vagas.map((v, idx) => (
+                <option key={`vaga-${v.id}-${idx}`} value={v.id}>{v.titulo}</option>
               ))}
             </select>
             <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -542,11 +539,11 @@ export default function PipelinePage() {
         {/* Loading skeleton */}
         {loading && candidates.length === 0 && (
           <div className="flex gap-4 overflow-x-auto pb-8">
-            {STAGES.map((s) => (
-              <div key={s.key} className="flex-shrink-0 w-72">
+            {STAGES.map((s, idx) => (
+              <div key={`skel-stage-${idx}`} className="flex-shrink-0 w-72">
                 <div className={`h-12 rounded-xl mb-3 animate-pulse ${s.bg}`} />
                 {[1, 2].map((i) => (
-                  <div key={i} className="h-28 bg-slate-100 dark:bg-slate-800 rounded-xl mb-3 animate-pulse" />
+                  <div key={`skel-card-${i}`} className="h-28 bg-slate-100 dark:bg-slate-800 rounded-xl mb-3 animate-pulse" />
                 ))}
               </div>
             ))}
@@ -578,9 +575,9 @@ export default function PipelinePage() {
                         <p className="text-xs text-slate-400 font-medium">Nenhum candidato</p>
                       </div>
                     ) : (
-                      columnCandidates.map((c) => (
+                      columnCandidates.map((c, idx) => (
                         <CandidateCard
-                          key={c.id}
+                          key={`cand-${c.id}-${idx}`}
                           candidate={c}
                           onMove={moveToNextStage}
                           onDiscard={discard}

@@ -523,6 +523,7 @@ export default function CandidateProfilePage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {[
                       ["Nome Completo", "fullName", "text"],
+                      ["E-mail", "email", "email"],
                       ["Telefone", "phone", "text"],
                       ["Idade", "age", "text"],
                       ["Cidade", "city", "text"],
