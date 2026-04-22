@@ -340,7 +340,7 @@ export default function RecruiterDashboard() {
         if (data.candidatos_recentes) {
           setCandidates(
             data.candidatos_recentes.map((c: any, idx: number) => ({
-              id: c.usuario_id || idx + 1,
+              id: c.candidatura_id ?? (c.usuario_id * 10000 + idx),
               name: c.nome,
               job: c.vaga_titulo || "—",
               match: "—",

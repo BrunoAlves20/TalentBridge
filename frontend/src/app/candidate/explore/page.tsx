@@ -166,8 +166,8 @@ function VagaCard({
           {/* Tags de requisitos */}
           {tags.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
-              {tags.slice(0, expandida ? tags.length : 5).map((tag) => (
-                <span key={tag} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2.5 py-0.5 rounded-lg text-xs font-bold">
+              {tags.slice(0, expandida ? tags.length : 5).map((tag, tIdx) => (
+                <span key={`${tag}-${tIdx}`} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2.5 py-0.5 rounded-lg text-xs font-bold">
                   {tag}
                 </span>
               ))}

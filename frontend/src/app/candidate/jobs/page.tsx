@@ -135,8 +135,8 @@ function VagaCard({
           {/* Tags de requisitos */}
           {requisitos.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
-              {requisitos.slice(0, 5).map((req) => (
-                <span key={req} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2.5 py-0.5 rounded-lg text-xs font-bold">
+              {requisitos.slice(0, 5).map((req, rIdx) => (
+                <span key={`${req}-${rIdx}`} className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-2.5 py-0.5 rounded-lg text-xs font-bold">
                   {req}
                 </span>
               ))}
@@ -368,7 +368,7 @@ export default function ExplorarVagasPage() {
         <div className="space-y-4">
           {vagasFiltradas.map((vaga) => (
             <VagaCard
-              key={vaga.id}
+              key={`vaga-${vaga.id}`}
               vaga={vaga}
               onCandidatar={handleCandidatar}
               loading={candidatandoId === vaga.id}
