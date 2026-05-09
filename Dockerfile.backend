@@ -6,7 +6,7 @@ RUN pip install --no-cache-dir \
     fastapi \
     uvicorn \
     mysql-connector-python \
-    bcrypt \
+    "bcrypt==4.0.1" \
     python-dotenv \
     google-genai \
     PyPDF2 \
