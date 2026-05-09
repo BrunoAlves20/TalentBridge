@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from database import get_db_connection
 from schemas import OnboardingPayload, PerfilUpdate
+from services.hunter_service import verify_email as hunter_verify
 
 router = APIRouter(
     prefix="/candidatos",
@@ -20,7 +21,7 @@ def salvar_onboarding(dados: OnboardingPayload):
 
     cursor = conn.cursor()
     try:
-        # 1. Sincroniza apenas o nome na tabela principal (mantém o e-mail original do cadastro)
+        # 1. Sincroniza apenas o nome na tabela principal
         cursor.execute(
             "UPDATE usuarios SET nome = %s WHERE id = %s",
             (dados.personal.fullName, dados.usuario_id),
@@ -133,7 +134,6 @@ def obter_perfil_completo(usuario_id: int):
 
     cursor = conn.cursor(dictionary=True)
     try:
-        # Dados pessoais (join entre usuarios e perfis_candidatos)
         cursor.execute(
             """
             SELECT u.nome, u.email,
@@ -219,13 +219,33 @@ def obter_perfil_completo(usuario_id: int):
 
 @router.put("/perfil-pessoal")
 def atualizar_perfil_pessoal(dados: PerfilUpdate):
-    """Atualiza apenas os dados pessoais do candidato (sem mexer em listas de skills/experiências)."""
+    """
+    Atualiza os dados pessoais do candidato.
+
+    Se o e-mail estiver sendo alterado, valida via Hunter.io antes de persistir.
+    """
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
 
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
+        # Busca o e-mail atual para detectar se está sendo alterado
+        cursor.execute("SELECT email FROM usuarios WHERE id = %s", (dados.usuario_id,))
+        usuario_atual = cursor.fetchone()
+        if not usuario_atual:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+
+        email_mudou = dados.email.lower().strip() != usuario_atual["email"].lower().strip()
+
+        # Valida o novo e-mail via Hunter apenas se tiver sido alterado
+        if email_mudou:
+            if not hunter_verify(dados.email):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Este e-mail não parece ser real. Use um e-mail válido.",
+                )
+
         cursor.execute(
             "UPDATE usuarios SET nome = %s, email = %s WHERE id = %s",
             (dados.fullName, dados.email, dados.usuario_id),
@@ -252,6 +272,8 @@ def atualizar_perfil_pessoal(dados: PerfilUpdate):
         conn.commit()
         return {"mensagem": "Dados pessoais atualizados com sucesso!"}
 
+    except HTTPException:
+        raise
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Erro ao atualizar: {str(e)}")
