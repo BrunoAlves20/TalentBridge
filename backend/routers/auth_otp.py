@@ -235,7 +235,25 @@ def verify_code(dados: VerifyCodeRequest):
     try:
         if tipo == "cadastro":
             ref_id = dados.email
+        elif tipo == "alteracao_email":
+            # Para alteracao_email, dados.email é o NOVO e-mail (não existe no banco ainda).
+            # O ref_id salvo em send-code foi o usuario_id (int). Recuperamos buscando
+            # pelo novo_email dentro de dados_pendentes via JSON_EXTRACT.
+            cursor.execute(
+                """
+                SELECT ref_id FROM codigos_verificacao
+                WHERE tipo = 'alteracao_email' AND codigo = %s AND usado = FALSE
+                  AND JSON_UNQUOTE(JSON_EXTRACT(dados_pendentes, '$.novo_email')) = %s
+                ORDER BY criado_em DESC LIMIT 1
+                """,
+                (dados.codigo, dados.email),
+            )
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=400, detail="Código incorreto. Verifique e tente novamente.")
+            ref_id = row["ref_id"]
         else:
+            # recuperacao: dados.email é o e-mail atual já cadastrado no banco
             ref_id = _get_usuario_id_por_email(cursor, dados.email)
             if not ref_id:
                 raise HTTPException(status_code=400, detail="Código inválido ou expirado.")

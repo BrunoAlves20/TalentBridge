@@ -212,7 +212,7 @@ export function EmailVerificationModal({
             key="backdrop"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm"
             onClick={() => { if (verifyStatus !== "loading") onClose(); }}
           />
 
@@ -222,7 +222,7 @@ export function EmailVerificationModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 16 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[210] flex items-center justify-center p-4"
           >
             <div className="relative w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl p-8">
 
