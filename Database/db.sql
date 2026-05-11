@@ -137,7 +137,19 @@ CREATE TABLE IF NOT EXISTS vagas_salvas (
     UNIQUE KEY uq_usuario_vaga (usuario_id, vaga_id)
 );
 
--- 11. Índices Adicionais para Otimização (Seguros para MySQL < 8.0.12)
+-- 11. Tabela de Códigos de Verificação para Cadastros Pendentes e Alterações
+CREATE TABLE IF NOT EXISTS codigos_verificacao (
+    id               INT AUTO_INCREMENT PRIMARY KEY,
+    ref_id           VARCHAR(255) NOT NULL COMMENT 'usuario_id (int) ou email (string) para cadastros pendentes',
+    codigo           VARCHAR(6)   NOT NULL,
+    tipo             ENUM('cadastro', 'recuperacao', 'alteracao_email') NOT NULL,
+    expira_em        TIMESTAMP    NOT NULL,
+    usado            BOOLEAN      NOT NULL DEFAULT FALSE,
+    dados_pendentes  JSON         NULL     COMMENT 'Dados pendentes serializados — gravados no banco só após validação',
+    criado_em        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 12. Índices Adicionais para Otimização (Seguros para MySQL < 8.0.12)
 
 -- Índice em candidaturas(candidato_id)
 SET @idx1 = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'candidaturas' AND INDEX_NAME = 'idx_candidaturas_candidato');
@@ -153,3 +165,13 @@ PREPARE stmt2 FROM @sql2; EXECUTE stmt2; DEALLOCATE PREPARE stmt2;
 SET @idx3 = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vagas_salvas' AND INDEX_NAME = 'idx_vagas_salvas_usuario');
 SET @sql3 = IF(@idx3 = 0, 'CREATE INDEX idx_vagas_salvas_usuario ON vagas_salvas (usuario_id)', 'SELECT "Índice idx_vagas_salvas_usuario já existe"');
 PREPARE stmt3 FROM @sql3; EXECUTE stmt3; DEALLOCATE PREPARE stmt3;
+
+-- Índice para as buscas do endpoint /auth/verify-code
+SET @idx4 = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'codigos_verificacao' AND INDEX_NAME = 'idx_cv_ref_tipo_usado');
+SET @sql4 = IF(@idx4 = 0, 'CREATE INDEX idx_cv_ref_tipo_usado ON codigos_verificacao (ref_id, tipo, usado)', 'SELECT "Índice idx_cv_ref_tipo_usado já existe"');
+PREPARE stmt4 FROM @sql4; EXECUTE stmt4; DEALLOCATE PREPARE stmt4;
+
+-- Índice para o cooldown (busca por criado_em do último código)
+SET @idx5 = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'codigos_verificacao' AND INDEX_NAME = 'idx_cv_criado');
+SET @sql5 = IF(@idx5 = 0, 'CREATE INDEX idx_cv_criado ON codigos_verificacao (ref_id, tipo, criado_em)', 'SELECT "Índice idx_cv_criado já existe"');
+PREPARE stmt5 FROM @sql5; EXECUTE stmt5; DEALLOCATE PREPARE stmt5;
