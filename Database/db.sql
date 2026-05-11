@@ -75,18 +75,7 @@ CREATE TABLE IF NOT EXISTS soft_skills (
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
--- 6. Redefinição de Senha
-CREATE TABLE IF NOT EXISTS codigos_redefinicao_senha (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    usuario_id INT NOT NULL,
-    codigo VARCHAR(6) NOT NULL,
-    expira_em TIMESTAMP NOT NULL,
-    usado BOOLEAN DEFAULT FALSE,
-    criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
-);
-
--- 7. Tabela de Perfil do Recrutador
+-- 6. Tabela de Perfil do Recrutador
 CREATE TABLE IF NOT EXISTS perfis_recrutadores (
     usuario_id INT PRIMARY KEY,
     empresa VARCHAR(255) NOT NULL,
@@ -97,7 +86,7 @@ CREATE TABLE IF NOT EXISTS perfis_recrutadores (
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
--- 8. Tabela de Vagas
+-- 7. Tabela de Vagas
 CREATE TABLE IF NOT EXISTS vagas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     recrutador_id INT NOT NULL,
@@ -114,7 +103,7 @@ CREATE TABLE IF NOT EXISTS vagas (
     FOREIGN KEY (recrutador_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
--- 9. Tabela de Candidaturas
+-- 8. Tabela de Candidaturas
 CREATE TABLE IF NOT EXISTS candidaturas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     vaga_id INT NOT NULL,
@@ -126,7 +115,7 @@ CREATE TABLE IF NOT EXISTS candidaturas (
     UNIQUE KEY unica_candidatura (vaga_id, candidato_id)
 );
 
--- 10. Tabela de Vagas Salvas (Migração Parte 2)
+-- 9. Tabela de Vagas Salvas (Migração Parte 2)
 CREATE TABLE IF NOT EXISTS vagas_salvas (
     id               INT AUTO_INCREMENT PRIMARY KEY,
     usuario_id       INT NOT NULL,
@@ -137,7 +126,7 @@ CREATE TABLE IF NOT EXISTS vagas_salvas (
     UNIQUE KEY uq_usuario_vaga (usuario_id, vaga_id)
 );
 
--- 11. Tabela de Códigos de Verificação para Cadastros Pendentes e Alterações
+-- 10. Tabela de Códigos de Verificação para Cadastros Pendentes e Alterações
 CREATE TABLE IF NOT EXISTS codigos_verificacao (
     id               INT AUTO_INCREMENT PRIMARY KEY,
     ref_id           VARCHAR(255) NOT NULL COMMENT 'usuario_id (int) ou email (string) para cadastros pendentes',
@@ -149,7 +138,7 @@ CREATE TABLE IF NOT EXISTS codigos_verificacao (
     criado_em        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 12. Índices Adicionais para Otimização (Seguros para MySQL < 8.0.12)
+-- 11. Índices Adicionais para Otimização (Seguros para MySQL < 8.0.12)
 
 -- Índice em candidaturas(candidato_id)
 SET @idx1 = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'candidaturas' AND INDEX_NAME = 'idx_candidaturas_candidato');
