@@ -71,10 +71,10 @@ def social_callback(provider: str, code: str = None, error: str = None):
     """
     # Usuário cancelou o login no provedor
     if error or not code:
-        return RedirectResponse(f"{FRONTEND_URL}/login?social_error=cancelled")
+        return RedirectResponse(f"{FRONTEND_URL}/auth/login?social_error=cancelled")
 
     if provider not in PROVIDERS:
-        return RedirectResponse(f"{FRONTEND_URL}/login?social_error=provider_invalido")
+        return RedirectResponse(f"{FRONTEND_URL}/auth/login?social_error=provider_invalido")
 
     # Obtém dados do perfil do provedor
     try:
@@ -83,18 +83,18 @@ def social_callback(provider: str, code: str = None, error: str = None):
         else:
             perfil = get_linkedin_user_info(code)
     except HTTPException:
-        return RedirectResponse(f"{FRONTEND_URL}/login?social_error=falha_provedor")
+        return RedirectResponse(f"{FRONTEND_URL}/auth/login?social_error=falha_provedor")
 
     social_id = perfil["social_id"]
     email     = perfil["email"]
     nome      = perfil["nome"]
 
     if not social_id or not email:
-        return RedirectResponse(f"{FRONTEND_URL}/login?social_error=dados_incompletos")
+        return RedirectResponse(f"{FRONTEND_URL}/auth/login?social_error=dados_incompletos")
 
     conn = get_db_connection()
     if not conn:
-        return RedirectResponse(f"{FRONTEND_URL}/login?social_error=banco_indisponivel")
+        return RedirectResponse(f"{FRONTEND_URL}/auth/login?social_error=banco_indisponivel")
 
     cursor = conn.cursor(dictionary=True)
     try:
@@ -155,7 +155,6 @@ def social_callback(provider: str, code: str = None, error: str = None):
         )
 
         # Redireciona para o frontend passando token e dados básicos via query params
-        # O frontend lê esses parâmetros no useEffect e armazena no localStorage
         redirect_base = (
             f"{FRONTEND_URL}/auth/social/callback"
             f"?token={token}"
@@ -169,7 +168,7 @@ def social_callback(provider: str, code: str = None, error: str = None):
 
     except Exception as e:
         conn.rollback()
-        return RedirectResponse(f"{FRONTEND_URL}/login?social_error=erro_interno")
+        return RedirectResponse(f"{FRONTEND_URL}/auth/login?social_error=erro_interno")
     finally:
         cursor.close()
         conn.close()

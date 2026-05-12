@@ -13,7 +13,7 @@ const navItems = [
   { name: "Vagas",           href: "/recruiter/jobs",      icon: ListChecks },
   { name: "Pipeline",        href: "/recruiter/pipeline",  icon: GitBranch },
   { name: "Ranking",         href: "/recruiter/ranking",   icon: Award },
-  { name: "Banco Talentos",  href: "/recruiter/talents",   icon: Users },  // ✅ nova aba
+  { name: "Banco Talentos",  href: "/recruiter/talents",   icon: Users },
 ];
 
 export function RecruiterNavbar() {
@@ -23,7 +23,7 @@ export function RecruiterNavbar() {
   const handleLogout = () => {
     localStorage.removeItem("@TalentBridge:user");
     localStorage.removeItem("usuario_id");
-    router.push("/login");
+    router.push("/auth/login");
   };
 
   return (

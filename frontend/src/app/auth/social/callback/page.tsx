@@ -31,7 +31,7 @@ export default function SocialCallbackPage() {
 
     if (!token || !userId || !email || !role) {
       setError("Dados de autenticação incompletos. Redirecionando...");
-      setTimeout(() => router.replace("/login?social_error=dados_incompletos"), 2000);
+      setTimeout(() => router.replace("/auth/login?social_error=dados_incompletos"), 2000);
       return;
     }
 
