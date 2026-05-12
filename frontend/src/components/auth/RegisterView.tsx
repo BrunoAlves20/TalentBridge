@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * RegisterView.tsx — v2
+ * RegisterView.tsx — v3
  *
- * FIX 1 — passa pendingData para o modal para que o reenvio funcione.
+ * v2 — FIX 1: passa pendingData para o modal para que o reenvio funcione.
+ * v3 — Adiciona botões de login social (SocialLoginButtons).
  */
 
 import { useState } from "react";
@@ -12,16 +13,17 @@ import type { UserRole } from "@/services/auth";
 import { EmailVerificationModal, type VerifySuccessPayload } from "@/components/auth/EmailVerificationModal";
 import { Mail, Lock, Loader2, ArrowRight, User, Briefcase, UserCircle } from "lucide-react";
 import { motion } from "framer-motion";
+import { SocialLoginButtons } from "@/components/auth/SocialLoginButtons";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 export function RegisterView() {
   const router = useRouter();
 
-  const [name, setName]       = useState("");
-  const [email, setEmail]     = useState("");
+  const [name, setName]         = useState("");
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole]       = useState<UserRole>("CANDIDATO");
+  const [role, setRole]         = useState<UserRole>("CANDIDATO");
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]         = useState("");
@@ -53,10 +55,10 @@ export function RegisterView() {
   function handleVerifySuccess(payload: VerifySuccessPayload) {
     setShowOtp(false);
     const userData = {
-      id: payload.usuario_id!,
+      id:   payload.usuario_id!,
       name,
       email: payload.email || email,
-      role: (payload.tipo_usuario as UserRole) || role,
+      role:  (payload.tipo_usuario as UserRole) || role,
     };
     localStorage.removeItem("@TalentBridge:OnboardingData");
     sessionStorage.removeItem("@TalentBridge:OnboardingData");
@@ -115,6 +117,11 @@ export function RegisterView() {
             {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : <><span>Criar Conta</span><ArrowRight size={16} /></>}
           </button>
         </form>
+
+        {/* Botões de login social — sem socialError no registro */}
+        <div className="mt-4">
+          <SocialLoginButtons />
+        </div>
       </motion.div>
 
       {/* FIX 1: pendingData garante que o reenvio tenha nome/senha/tipo_usuario */}

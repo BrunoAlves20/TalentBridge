@@ -9,9 +9,12 @@ CREATE TABLE IF NOT EXISTS usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    senha_hash VARCHAR(255) NOT NULL,
+    senha_hash VARCHAR(255) NULL DEFAULT NULL,
     tipo_usuario ENUM('CANDIDATO', 'RECRUTADOR') NOT NULL DEFAULT 'CANDIDATO',
     preferencias JSON NULL COMMENT 'Toggles de notificação: {"email_candidatura": true, "email_status": true, "email_novidades": false}',
+
+    social_id VARCHAR(255) NULL DEFAULT NULL COMMENT 'ID único retornado pelo Google/LinkedIn',
+    social_provider ENUM('google', 'linkedin') NULL DEFAULT NULL COMMENT 'Provedor social utilizado',
     criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -164,3 +167,8 @@ PREPARE stmt4 FROM @sql4; EXECUTE stmt4; DEALLOCATE PREPARE stmt4;
 SET @idx5 = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'codigos_verificacao' AND INDEX_NAME = 'idx_cv_criado');
 SET @sql5 = IF(@idx5 = 0, 'CREATE INDEX idx_cv_criado ON codigos_verificacao (ref_id, tipo, criado_em)', 'SELECT "Índice idx_cv_criado já existe"');
 PREPARE stmt5 FROM @sql5; EXECUTE stmt5; DEALLOCATE PREPARE stmt5;
+
+-- Índice único para social_id + social_provider
+SET @idx6 = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios' AND INDEX_NAME = 'uq_social');
+SET @sql6 = IF(@idx6 = 0, 'CREATE UNIQUE INDEX uq_social ON usuarios (social_id, social_provider)', 'SELECT "Índice uq_social já existe"');
+PREPARE stmt6 FROM @sql6; EXECUTE stmt6; DEALLOCATE PREPARE stmt6;

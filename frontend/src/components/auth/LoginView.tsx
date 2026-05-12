@@ -1,22 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { authService } from "@/services/auth";
 import { Mail, Lock, Loader2, ArrowRight, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
+import { SocialLoginButtons } from "@/components/auth/SocialLoginButtons";
 
 interface LoginViewProps {
   onForgotPassword?: () => void;
 }
 
 export function LoginView({ onForgotPassword }: LoginViewProps) {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError]         = useState("");
   const [onboardingNotice, setOnboardingNotice] = useState(false);
+
+  // Lê o erro de login social vindo da URL (?social_error=cancelled etc.)
+  const socialError = searchParams.get("social_error");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -33,8 +39,7 @@ export function LoginView({ onForgotPassword }: LoginViewProps) {
     try {
       const user = await authService.login(email, password);
 
-      // [PREVENÇÃO DE ERRO] Limpa os dados do Onboarding em cache para garantir que 
-      // este novo utilizador não aceda ao currículo não guardado de um utilizador anterior.
+      // Limpa dados do Onboarding em cache para evitar conflito entre usuários
       localStorage.removeItem("@TalentBridge:OnboardingData");
       sessionStorage.removeItem("@TalentBridge:OnboardingData");
 
@@ -129,6 +134,11 @@ export function LoginView({ onForgotPassword }: LoginViewProps) {
           )}
         </button>
       </form>
+
+      {/* Botões de login social com tratamento de erro de URL */}
+      <div className="mt-4">
+        <SocialLoginButtons socialError={socialError} />
+      </div>
     </motion.div>
   );
 }
