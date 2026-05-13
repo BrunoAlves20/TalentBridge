@@ -16,6 +16,7 @@ Correções aplicadas:
            Nenhuma alteração necessária.
 """
 
+import os
 import json
 from datetime import datetime, timedelta
 
@@ -35,6 +36,8 @@ router = APIRouter(
 
 EXPIRACAO_MINUTOS = 2
 COOLDOWN_SEGUNDOS = 120
+
+DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -121,6 +124,35 @@ def send_code(dados: SendCodeRequest):
 
     cursor = conn.cursor(dictionary=True)
     try:
+
+        # ── MODO DE DESENVOLVIMENTO ───────────────────────────────────────────
+        if DEV_MODE:
+            # Determina o ref_id conforme o tipo (igual ao fluxo real)
+            if tipo == "cadastro":
+                ref_id = dados.email
+                dados_pendentes = {
+                    "nome": dados.nome or "Dev User",
+                    "email": dados.email,
+                    "senha": dados.senha or "dev123",
+                    "tipo_usuario": dados.tipo_usuario or "CANDIDATO",
+                }
+            elif tipo == "recuperacao":
+                usuario_id = _get_usuario_id_por_email(cursor, dados.email)
+                if not usuario_id:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Não encontramos uma conta com este e-mail.",
+                    )
+                ref_id = usuario_id
+                dados_pendentes = {"nova_senha": dados.senha}
+            else:  # alteracao_email
+                ref_id = dados.usuario_id
+                dados_pendentes = {"novo_email": dados.novo_email}
+
+            _salvar_codigo(cursor, ref_id, "000000", tipo, dados_pendentes)
+            conn.commit()
+            return {"mensagem": f"[DEV] Código 000000 gerado para {tipo}. Nenhum e-mail enviado."}
+        # ── FIM MODO DE DESENVOLVIMENTO ───────────────────────────────────────
 
         # ── CADASTRO ──────────────────────────────────────────────────────────
         if tipo == "cadastro":

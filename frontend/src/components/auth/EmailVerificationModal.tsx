@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Loader2, CheckCircle2, AlertCircle, Mail, RefreshCw } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 const TIMER_SEGUNDOS = 120;
 
 type VerifyStatus = "idle" | "loading" | "success" | "error";
@@ -112,6 +113,13 @@ export function EmailVerificationModal({
     }
   }, [isOpen]);
 
+  // DEV_MODE: pré-preenche os campos com 000000 ao abrir o modal
+  useEffect(() => {
+    if (isOpen && DEV_MODE) {
+      setDigits(["0", "0", "0", "0", "0", "0"]);
+    }
+  }, [isOpen]);
+
   const timerFormatado = `${String(Math.floor(segundosRestantes / 60)).padStart(2, "0")}:${String(
     segundosRestantes % 60
   ).padStart(2, "0")}`;
@@ -195,6 +203,12 @@ export function EmailVerificationModal({
       setDigits(Array(6).fill(""));
       setVerifyStatus("idle");
       iniciarTimer();
+
+      // DEV_MODE: pré-preenche novamente após reenvio
+      if (DEV_MODE) {
+        setDigits(["0", "0", "0", "0", "0", "0"]);
+      }
+
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
       setTimeout(() => setResendStatus("idle"), 3000);
     } catch (err: unknown) {
@@ -243,6 +257,12 @@ export function EmailVerificationModal({
               <h2 className="text-xl font-semibold text-center text-foreground mb-2">{TITULO[tipo]}</h2>
               <p className="text-sm text-center text-muted-foreground mb-1">{DESCRICAO[tipo]}</p>
               <p className="text-sm text-center font-medium text-indigo-600 dark:text-indigo-400 mb-6 break-all">{email}</p>
+
+              {DEV_MODE && (
+                <p className="text-xs text-center text-amber-500 mb-4">
+                  ⚙ Modo dev — campos pré-preenchidos com 000000
+                </p>
+              )}
 
               {verifyStatus === "success" ? (
                 <motion.div

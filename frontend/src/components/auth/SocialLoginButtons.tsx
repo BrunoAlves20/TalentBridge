@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true";
 
 interface SocialLoginButtonsProps {
   /** Mensagem de erro vinda da URL (ex: social_error=cancelled) */
@@ -55,18 +56,19 @@ export function SocialLoginButtons({ socialError }: SocialLoginButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<"google" | "linkedin" | null>(null);
 
   function handleSocialLogin(provider: "google" | "linkedin") {
+    if (DEV_MODE) return; // não redireciona em modo de desenvolvimento
     setLoadingProvider(provider);
     // Redireciona o navegador para o backend, que faz o redirect para o provedor
     window.location.href = `${API_URL}/auth/social/${provider}/login`;
   }
 
   const errorMessages: Record<string, string> = {
-    cancelled:         "Login social cancelado pelo usuário.",
-    falha_provedor:    "Não foi possível conectar ao provedor. Tente novamente.",
-    dados_incompletos: "Não foi possível obter seus dados do provedor social.",
-    banco_indisponivel:"Serviço temporariamente indisponível. Tente mais tarde.",
-    erro_interno:      "Ocorreu um erro inesperado. Tente novamente.",
-    provider_invalido: "Provedor de login não suportado.",
+    cancelled:          "Login social cancelado pelo usuário.",
+    falha_provedor:     "Não foi possível conectar ao provedor. Tente novamente.",
+    dados_incompletos:  "Não foi possível obter seus dados do provedor social.",
+    banco_indisponivel: "Serviço temporariamente indisponível. Tente mais tarde.",
+    erro_interno:       "Ocorreu um erro inesperado. Tente novamente.",
+    provider_invalido:  "Provedor de login não suportado.",
   };
 
   const errorMsg = socialError ? (errorMessages[socialError] ?? "Erro no login social.") : null;
@@ -105,6 +107,9 @@ export function SocialLoginButtons({ socialError }: SocialLoginButtonsProps) {
           <GoogleIcon />
         )}
         Continuar com Google
+        {DEV_MODE && (
+          <span className="text-xs text-amber-500 ml-1">⚙ modo dev</span>
+        )}
       </button>
 
       {/* Botão LinkedIn */}
@@ -125,6 +130,9 @@ export function SocialLoginButtons({ socialError }: SocialLoginButtonsProps) {
           <LinkedInIcon />
         )}
         Continuar com LinkedIn
+        {DEV_MODE && (
+          <span className="text-xs text-amber-500 ml-1">⚙ modo dev</span>
+        )}
       </button>
     </div>
   );
