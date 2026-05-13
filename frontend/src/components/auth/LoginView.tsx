@@ -67,7 +67,7 @@ export function LoginView({ onForgotPassword }: LoginViewProps) {
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: -60, opacity: 0 }}
       transition={{ duration: 0.45 }}
-      className="absolute left-0 top-16 w-[500px] bg-card p-24 rounded-xl shadow-xl border border-border"
+      className="absolute left-0 top-1/2 -translate-y-1/2 w-[500px] bg-card p-24 rounded-xl shadow-xl border border-border"
     >
       <h2 className="text-2xl font-semibold text-center mb-8">Fazer Login</h2>
 
