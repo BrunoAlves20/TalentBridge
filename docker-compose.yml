@@ -9,7 +9,7 @@ services:
       - backend/.env
     dns:
       - 8.8.8.8
-      - 1.1.1.1
+      - 8.8.4.4
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
