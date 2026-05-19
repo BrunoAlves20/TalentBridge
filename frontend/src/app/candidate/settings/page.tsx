@@ -312,7 +312,7 @@ export default function SettingsPage() {
       localStorage.removeItem("usuario_id");
       localStorage.removeItem("@TalentBridge:OnboardingData");
 
-      router.push("/login");
+      router.push("/auth/login");
     } catch (e: any) {
       addToast("error", e.message ?? "Erro ao excluir a conta. Tente novamente.");
       setIsDeleting(false);
@@ -364,7 +364,7 @@ export default function SettingsPage() {
     localStorage.removeItem("@TalentBridge:user");
     localStorage.removeItem("usuario_id");
     localStorage.removeItem("@TalentBridge:OnboardingData");
-    router.push("/login");
+    router.push("/auth/login");
   };
 
   // ── Força da senha ──────────────────────────────────────────────────────────

@@ -63,24 +63,10 @@ class OnboardingPayload(BaseModel):
     softSkills: List[str]
 
 
-# ── Redefinição de Senha ──────────────────────────────────────────────────────
-
-class EsqueceuSenhaRequest(BaseModel):
-    email: EmailStr
-
-
-class VerificarCodigoRequest(BaseModel):
-    email: EmailStr
-    codigo: str
-
-
-class RedefinirSenhaRequest(BaseModel):
-    email: EmailStr
-    codigo: str
-    nova_senha: str
-
-
 # ── Gestão de Conta ───────────────────────────────────────────────────────────
+# EsqueceuSenhaRequest, VerificarCodigoRequest e RedefinirSenhaRequest foram
+# removidos — o fluxo de recuperação de senha agora usa POST /auth/send-code
+# e POST /auth/verify-code (routers/auth_otp.py + tabela codigos_verificacao).
 
 class AlterarSenhaRequest(BaseModel):
     usuario_id: int
@@ -139,14 +125,12 @@ class VagaUpdate(BaseModel):
     modalidade: str = "PRESENCIAL"
     localizacao: Optional[str] = ""
     faixa_salarial: Optional[str] = ""
-    # Valores válidos: ABERTA | PAUSADA | ENCERRADA
     status: str = "ABERTA"
 
 
 # ── Recrutador — Candidaturas ─────────────────────────────────────────────────
 
 class CandidaturaStatusUpdate(BaseModel):
-    # Valores válidos: ENVIADO | EM_ANALISE | ENTREVISTA | APROVADO | REJEITADO
     status: str
 
 

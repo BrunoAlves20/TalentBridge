@@ -2,6 +2,8 @@
 
 O **TalentBridge** é uma aplicação moderna que conecta candidatos e recrutadores através de uma interface intuitiva e processamento inteligente de dados. O projeto utiliza **FastAPI** no backend, **Next.js** no frontend e **MySQL** como banco de dados.
 
+> ⚙️ **O projeto está configurado em Modo de Desenvolvimento (DEV_MODE).** Nesse modo, nenhum serviço externo é necessário: qualquer e-mail é aceito, o código OTP é sempre `000000` e os botões de login social ficam desativados. Para rodar em produção real, consulte a seção [Modo de Produção](#-modo-de-produção) abaixo.
+
 ---
 
 ## 🛠️ Tecnologias Utilizadas
@@ -117,6 +119,56 @@ As imagens já estão prontas, então sobe muito mais rápido.
 
 ---
 
+## ⚙️ Modo de Desenvolvimento (DEV_MODE)
+
+O projeto já vem com o **Modo de Desenvolvimento ativo** para facilitar testes locais sem depender de serviços externos. Veja o que muda:
+
+| Funcionalidade | Produção | DEV_MODE ativo |
+| :--- | :--- | :--- |
+| Validação de e-mail | Hunter.io verifica o e-mail | Qualquer e-mail é aceito |
+| Envio de OTP | Código aleatório via SMTP/Gmail | Código fixo `000000` no banco |
+| Modal de verificação | Usuário digita o código recebido | Campos pré-preenchidos com `000000` |
+| Botão Google | Redireciona para OAuth Google | Exibe aviso `⚙ modo dev` e não redireciona |
+| Botão LinkedIn | Redireciona para OAuth LinkedIn | Exibe aviso `⚙ modo dev` e não redireciona |
+
+Nenhum código de produção é removido — tudo é apenas desviado condicionalmente. Para voltar ao comportamento real, veja a seção abaixo.
+
+---
+
+## 🏭 Modo de Produção
+
+Para rodar o sistema com todos os serviços reais (e-mail, validação de e-mail, login social), siga os passos:
+
+### 1. Obtenha as chaves de API necessárias
+
+Consulte o arquivo **`GuiaChaves.md`** na raiz do projeto — ele contém o passo a passo para obter cada credencial:
+- Chave do **Google Gemini** (IA para extração de currículos)
+- Chave do **Hunter.io** (validação de e-mails)
+- **Senha de App do Gmail** (envio de e-mails OTP)
+- **Client ID e Secret do Google** (login social)
+- **Client ID e Secret do LinkedIn** (login social)
+
+### 2. Preencha o `backend/.env` com todas as credenciais
+
+Abra o .env e no final coloque o DEV_MODE=false
+
+### 3. Desative o DEV_MODE no frontend
+
+Abra `frontend/.env.local` e altere:
+```env
+NEXT_PUBLIC_DEV_MODE=false
+```
+
+### 4. Reinicie os containers
+
+```bash
+docker compose down && docker compose up --build
+```
+
+> Nenhum outro arquivo precisa ser alterado. A troca de `true` para `false` nas variáveis de ambiente é suficiente para ativar o comportamento completo de produção.
+
+---
+
 ## 📋 Comandos úteis
 
 Ver logs de um serviço específico:
@@ -162,6 +214,22 @@ docker-compose logs -f
 | `DB_NAME` | Nome do banco (padrão: `talentbridge`) |
 | `DB_PORT` | Porta do MySQL (padrão: `3306`) |
 | `GEMINI_API_KEY` | Chave da API do Google Gemini |
+| `JWT_SECRET` | String secreta para geração de tokens JWT |
+| `JWT_EXPIRE_MINUTES` | Tempo de expiração do token JWT em minutos |
+| `HUNTER_API_KEY` | Chave do Hunter.io para validação de e-mails |
+| `SMTP_HOST` | Servidor SMTP para envio de e-mails |
+| `SMTP_PORT` | Porta do servidor SMTP |
+| `SMTP_USER` | E-mail remetente |
+| `SMTP_PASS` | Senha de App do Gmail |
+| `EMAIL_FROM` | Nome e endereço exibidos no e-mail enviado |
+| `GOOGLE_CLIENT_ID` | Client ID do Google OAuth |
+| `GOOGLE_CLIENT_SECRET` | Client Secret do Google OAuth |
+| `GOOGLE_REDIRECT_URI` | URI de callback do Google OAuth |
+| `LINKEDIN_CLIENT_ID` | Client ID do LinkedIn OAuth |
+| `LINKEDIN_CLIENT_SECRET` | Client Secret do LinkedIn OAuth |
+| `LINKEDIN_REDIRECT_URI` | URI de callback do LinkedIn OAuth |
+| `FRONTEND_URL` | URL do frontend (usada pelo backend no redirect OAuth) |
+| `DEV_MODE` | `true` = modo de desenvolvimento / `false` = produção real |
 
 ---
 

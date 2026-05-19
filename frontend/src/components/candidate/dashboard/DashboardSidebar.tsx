@@ -10,12 +10,12 @@ import {
   Settings,
   LogOut,
   BrainCircuit,
-  Compass,         // ícone para Explorar Vagas
+  Compass,
 } from "lucide-react";
 
 const navItems = [
   { name: "Visão Geral",    href: "/candidate/dashboard",    icon: LayoutDashboard },
-  { name: "Explorar Vagas", href: "/candidate/explore",      icon: Compass },         // ✅ novo item
+  { name: "Explorar Vagas", href: "/candidate/explore",      icon: Compass },
   { name: "Meu Perfil",     href: "/candidate/profile",      icon: User },
   { name: "Candidaturas",   href: "/candidate/applications", icon: Briefcase },
   { name: "Vagas Salvas",   href: "/candidate/saved",        icon: Bookmark },
@@ -30,7 +30,7 @@ export function DashboardSidebar() {
     localStorage.removeItem("@TalentBridge:user");
     localStorage.removeItem("usuario_id");
     localStorage.removeItem("@TalentBridge:OnboardingData");
-    router.push("/login");
+    router.push("/auth/login");
   };
 
   return (
@@ -59,7 +59,6 @@ export function DashboardSidebar() {
         {navItems.map((item) => {
           const isActive =
             pathname === item.href ||
-            // Marca "Explorar Vagas" como ativo também em /candidate/jobs/*
             (item.href === "/candidate/explore" && pathname.startsWith("/candidate/explore"));
 
           return (
