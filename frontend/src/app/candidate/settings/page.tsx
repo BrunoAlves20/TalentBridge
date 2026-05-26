@@ -1,19 +1,17 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
-  User, Mail, Lock, Trash2, LogOut, Sun, Moon, Monitor,
+  User, Lock, Trash2, LogOut, Sun, Moon, Monitor,
   CheckCircle2, AlertCircle, Loader2, Eye, EyeOff,
-  Shield, Bell, Palette, ChevronRight, X
+  Shield, Bell, Palette, ChevronRight, X, Save
 } from "lucide-react";
 
-const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
-// ─── Tipos ───────────────────────────────────────────────────────────────────
-
-type Section = "conta" | "seguranca" | "aparencia" | "notificacoes";
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 interface Toast {
   id: number;
@@ -21,19 +19,28 @@ interface Toast {
   message: string;
 }
 
+interface Preferencias {
+  email_candidatura: boolean;
+  email_status: boolean;
+  email_novidades: boolean;
+}
+
+const PREFS_PADRAO: Preferencias = {
+  email_candidatura: true,
+  email_status: true,
+  email_novidades: false,
+};
+
 // ─── Helpers visuais ──────────────────────────────────────────────────────────
 
 const inputCls =
   "w-full bg-slate-50 dark:bg-[#1A1D2D] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white text-sm transition";
 
-const labelCls = "text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest";
+const labelCls =
+  "text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest";
 
 function SectionCard({
-  title,
-  subtitle,
-  icon: Icon,
-  iconColor,
-  children,
+  title, subtitle, icon: Icon, iconColor, children,
 }: {
   title: string;
   subtitle: string;
@@ -70,16 +77,12 @@ function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id
         <div
           key={t.id}
           className={`flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl pointer-events-auto animate-in slide-in-from-bottom-4 duration-300 ${
-            t.type === "success"
-              ? "bg-emerald-600 text-white"
-              : "bg-rose-600 text-white"
+            t.type === "success" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"
           }`}
         >
-          {t.type === "success" ? (
-            <CheckCircle2 className="w-5 h-5 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 shrink-0" />
-          )}
+          {t.type === "success"
+            ? <CheckCircle2 className="w-5 h-5 shrink-0" />
+            : <AlertCircle className="w-5 h-5 shrink-0" />}
           <span className="text-sm font-bold">{t.message}</span>
           <button onClick={() => onDismiss(t.id)} className="ml-2 opacity-70 hover:opacity-100">
             <X className="w-4 h-4" />
@@ -90,7 +93,27 @@ function ToastContainer({ toasts, onDismiss }: { toasts: Toast[]; onDismiss: (id
   );
 }
 
-// ─── Modal de confirmação de exclusão ─────────────────────────────────────────
+// ─── Toggle ───────────────────────────────────────────────────────────────────
+
+function Toggle({ value, onChange, disabled }: { value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  return (
+    <button
+      onClick={() => !disabled && onChange(!value)}
+      disabled={disabled}
+      className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 disabled:opacity-50 ${
+        value ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-700"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+          value ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
+}
+
+// ─── Modal de exclusão ────────────────────────────────────────────────────────
 
 function DeleteModal({ onClose, onConfirm, isDeleting }: {
   onClose: () => void;
@@ -158,10 +181,7 @@ export default function SettingsPage() {
   const [userEmail, setUserEmail] = useState("");
   const [usuarioId, setUsuarioId] = useState<string | null>(null);
 
-  // Formulários
-  const [newEmail, setNewEmail] = useState("");
-  const [currentPasswordEmail, setCurrentPasswordEmail] = useState("");
-
+  // Formulário de senha
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -169,13 +189,12 @@ export default function SettingsPage() {
   const [showNewPw, setShowNewPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
 
-  // Notificações (preferências locais)
-  const [notifEmail, setNotifEmail] = useState(true);
-  const [notifVagas, setNotifVagas] = useState(true);
-  const [notifCandidaturas, setNotifCandidaturas] = useState(true);
+  // Preferências de notificação
+  const [prefs, setPrefs] = useState<Preferencias>(PREFS_PADRAO);
+  const [loadingPrefs, setLoadingPrefs] = useState(false);
+  const [savingPrefs, setSavingPrefs] = useState(false);
 
   // Estados de loading
-  const [isSavingEmail, setIsSavingEmail] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -193,86 +212,44 @@ export default function SettingsPage() {
   const dismissToast = (id: number) =>
     setToasts((prev) => prev.filter((t) => t.id !== id));
 
+  // ── Inicialização ──────────────────────────────────────────────────────────
   useEffect(() => {
     setMounted(true);
     const raw = localStorage.getItem("@TalentBridge:user");
     if (raw) {
-      const user = JSON.parse(raw);
-      setUserName(user.name ?? "");
-      setUserEmail(user.email ?? "");
-      setNewEmail(user.email ?? "");
+      try {
+        const user = JSON.parse(raw);
+        setUserName(user.name ?? "");
+        setUserEmail(user.email ?? "");
+      } catch {}
     }
-    setUsuarioId(localStorage.getItem("usuario_id"));
+    const id = localStorage.getItem("usuario_id");
+    setUsuarioId(id);
   }, []);
 
-  // ── Alterar e-mail ──────────────────────────────────────────────────────────
-  const handleChangeEmail = async () => {
-    if (!newEmail.trim() || !newEmail.includes("@")) {
-      addToast("error", "Informe um e-mail válido.");
-      return;
-    }
-    if (!currentPasswordEmail.trim()) {
-      addToast("error", "Informe sua senha atual para confirmar.");
-      return;
-    }
-    if (newEmail === userEmail) {
-      addToast("error", "O novo e-mail é igual ao atual.");
-      return;
-    }
-
-    setIsSavingEmail(true);
+  // ── Carrega preferências da API ────────────────────────────────────────────
+  const carregarPreferencias = useCallback(async (id: string) => {
+    setLoadingPrefs(true);
     try {
-      // Verifica a senha atual via login antes de alterar
-      const checkRes = await fetch(`${getApiUrl()}/usuarios/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail, senha: currentPasswordEmail }),
-      });
-
-      if (!checkRes.ok) {
-        addToast("error", "Senha atual incorreta.");
-        return;
+      const res = await fetch(`${API_URL}/usuarios/${id}/preferencias`);
+      const data = await res.json();
+      if (res.ok && data.preferencias) {
+        setPrefs({ ...PREFS_PADRAO, ...data.preferencias });
       }
-
-      // Atualiza o e-mail via PUT /candidatos/perfil-pessoal
-      const perfilRes = await fetch(
-        `${getApiUrl()}/candidatos/perfil-completo/${usuarioId}`
-      );
-      if (!perfilRes.ok) throw new Error("Não foi possível carregar os dados do perfil.");
-      const perfil = await perfilRes.json();
-
-      const updateRes = await fetch(`${getApiUrl()}/candidatos/perfil-pessoal`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          usuario_id: Number(usuarioId),
-          ...perfil.personal,
-          email: newEmail,
-        }),
-      });
-
-      if (!updateRes.ok) throw new Error("Erro ao atualizar e-mail.");
-
-      // Atualiza o localStorage
-      const raw = localStorage.getItem("@TalentBridge:user");
-      if (raw) {
-        const user = JSON.parse(raw);
-        user.email = newEmail;
-        localStorage.setItem("@TalentBridge:user", JSON.stringify(user));
-      }
-
-      setUserEmail(newEmail);
-      setCurrentPasswordEmail("");
-      addToast("success", "E-mail atualizado com sucesso!");
-    } catch (e: any) {
-      addToast("error", e.message ?? "Erro ao atualizar e-mail.");
+    } catch {
+      // falha silenciosa — usa os valores padrão
     } finally {
-      setIsSavingEmail(false);
+      setLoadingPrefs(false);
     }
-  };
+  }, []);
 
-  // ── Alterar senha ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (usuarioId) carregarPreferencias(usuarioId);
+  }, [usuarioId, carregarPreferencias]);
+
+  // ── Alterar senha (endpoint real PUT /usuarios/senha) ──────────────────────
   const handleChangePassword = async () => {
+    if (!usuarioId) return;
     if (!currentPassword.trim()) {
       addToast("error", "Informe sua senha atual.");
       return;
@@ -288,48 +265,97 @@ export default function SettingsPage() {
 
     setIsSavingPassword(true);
     try {
-      // Verifica senha atual via login
-      const checkRes = await fetch(`${getApiUrl()}/usuarios/login`, {
-        method: "POST",
+      const res = await fetch(`${API_URL}/usuarios/senha`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail, senha: currentPassword }),
+        body: JSON.stringify({
+          usuario_id: Number(usuarioId),
+          senha_atual: currentPassword,
+          nova_senha: newPassword,
+        }),
       });
 
-      if (!checkRes.ok) {
-        addToast("error", "Senha atual incorreta.");
-        return;
+      const data = await res.json();
+
+      if (!res.ok) {
+        // 400 = senha atual incorreta ou regras de validação
+        throw new Error(data.detail ?? "Erro ao alterar a senha.");
       }
 
-      // O backend não tem endpoint dedicado de troca de senha ainda.
-      // Simulamos o sucesso e limpamos os campos — quando o endpoint existir,
-      // basta trocar pelo fetch correto aqui.
       addToast("success", "Senha alterada com sucesso!");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch {
-      addToast("error", "Erro ao alterar a senha. Tente novamente.");
+    } catch (e: any) {
+      addToast("error", e.message ?? "Erro ao alterar a senha. Tente novamente.");
     } finally {
       setIsSavingPassword(false);
     }
   };
 
-  // ── Excluir conta ───────────────────────────────────────────────────────────
+  // ── Excluir conta (endpoint real DELETE /usuarios/{id}) ────────────────────
   const handleDeleteAccount = async () => {
+    if (!usuarioId) return;
     setIsDeleting(true);
     try {
-      // Endpoint de exclusão ainda não existe no backend.
-      // Quando for criado (DELETE /usuarios/{id}), substituir aqui.
-      await new Promise((r) => setTimeout(r, 1000)); // simula latência
+      const res = await fetch(`${API_URL}/usuarios/${usuarioId}`, {
+        method: "DELETE",
+      });
 
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail ?? "Erro ao excluir a conta.");
+      }
+
+      // Limpa tudo do localStorage antes de redirecionar
       localStorage.removeItem("@TalentBridge:user");
       localStorage.removeItem("usuario_id");
       localStorage.removeItem("@TalentBridge:OnboardingData");
 
-      router.push("/login");
-    } catch {
-      addToast("error", "Erro ao excluir a conta. Tente novamente.");
+      router.push("/auth/login");
+    } catch (e: any) {
+      addToast("error", e.message ?? "Erro ao excluir a conta. Tente novamente.");
       setIsDeleting(false);
+    }
+  };
+
+  // ── Salvar preferências (endpoint real PUT /usuarios/{id}/preferencias) ─────
+  const handleSavePrefs = async () => {
+    if (!usuarioId) return;
+    setSavingPrefs(true);
+    try {
+      const res = await fetch(`${API_URL}/usuarios/${usuarioId}/preferencias`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(prefs),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail ?? "Erro ao salvar preferências.");
+
+      addToast("success", "Preferências salvas!");
+    } catch (e: any) {
+      addToast("error", e.message ?? "Erro ao salvar preferências.");
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
+
+  // Atualiza um toggle e persiste imediatamente
+  const handleTogglePref = async (key: keyof Preferencias, value: boolean) => {
+    if (!usuarioId) return;
+    const novas = { ...prefs, [key]: value };
+    setPrefs(novas);
+
+    // Persiste imediatamente (sem aguardar o botão "Salvar")
+    try {
+      await fetch(`${API_URL}/usuarios/${usuarioId}/preferencias`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+    } catch {
+      // falha silenciosa — o estado local já foi atualizado
     }
   };
 
@@ -338,26 +364,8 @@ export default function SettingsPage() {
     localStorage.removeItem("@TalentBridge:user");
     localStorage.removeItem("usuario_id");
     localStorage.removeItem("@TalentBridge:OnboardingData");
-    router.push("/login");
+    router.push("/auth/login");
   };
-
-  // ── Toggle de notificação ───────────────────────────────────────────────────
-  function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
-    return (
-      <button
-        onClick={() => onChange(!value)}
-        className={`relative w-11 h-6 rounded-full transition-colors duration-200 shrink-0 ${
-          value ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-700"
-        }`}
-      >
-        <span
-          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
-            value ? "translate-x-5" : "translate-x-0"
-          }`}
-        />
-      </button>
-    );
-  }
 
   // ── Força da senha ──────────────────────────────────────────────────────────
   const passwordStrength = (() => {
@@ -369,10 +377,10 @@ export default function SettingsPage() {
       /[^A-Za-z0-9]/.test(newPassword),
     ];
     const score = checks.filter(Boolean).length;
-    if (score <= 1) return { label: "Fraca", color: "bg-rose-400", width: "w-1/4" };
-    if (score === 2) return { label: "Razoável", color: "bg-amber-400", width: "w-2/4" };
-    if (score === 3) return { label: "Boa", color: "bg-indigo-500", width: "w-3/4" };
-    return { label: "Forte", color: "bg-emerald-500", width: "w-full" };
+    if (score <= 1) return { label: "Fraca",    color: "bg-rose-400",    width: "w-1/4" };
+    if (score === 2) return { label: "Razoável", color: "bg-amber-400",   width: "w-2/4" };
+    if (score === 3) return { label: "Boa",      color: "bg-indigo-500",  width: "w-3/4" };
+    return              { label: "Forte",    color: "bg-emerald-500", width: "w-full" };
   })();
 
   return (
@@ -390,15 +398,14 @@ export default function SettingsPage() {
 
       <div className="space-y-6">
 
-        {/* ── CONTA ─────────────────────────────────────────────────────────── */}
+        {/* ── CONTA ──────────────────────────────────────────────────────────── */}
         <SectionCard
           title="Dados da Conta"
-          subtitle="Informações de identificação e acesso"
+          subtitle="Informações de identificação"
           icon={User}
           iconColor="bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400"
         >
-          {/* Info atual */}
-          <div className="bg-slate-50 dark:bg-[#1A1D2D]/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-800/50 mb-6">
+          <div className="bg-slate-50 dark:bg-[#1A1D2D]/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-800/50">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-xl shrink-0">
                 {userName.charAt(0) || "?"}
@@ -409,53 +416,15 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
-
-          {/* Alterar e-mail */}
-          <div className="space-y-4">
-            <p className="text-sm font-black text-slate-700 dark:text-slate-300">Alterar E-mail</p>
-
-            <div className="space-y-1.5">
-              <label className={labelCls}>Novo e-mail</label>
-              <input
-                type="email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                className={inputCls}
-                placeholder="novo@email.com"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className={labelCls}>Confirme com sua senha atual</label>
-              <div className="relative">
-                <input
-                  type={showCurrentPw ? "text" : "password"}
-                  value={currentPasswordEmail}
-                  onChange={(e) => setCurrentPasswordEmail(e.target.value)}
-                  className={inputCls + " pr-11"}
-                  placeholder="••••••••"
-                />
-                <button
-                  onClick={() => setShowCurrentPw(!showCurrentPw)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
-                >
-                  {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              onClick={handleChangeEmail}
-              disabled={isSavingEmail}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white py-3 rounded-xl font-bold text-sm transition shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2"
-            >
-              {isSavingEmail && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isSavingEmail ? "Salvando..." : "Salvar novo e-mail"}
-            </button>
-          </div>
+          <p className="text-xs text-slate-400 mt-4 text-center">
+            Para alterar nome ou e-mail, acesse{" "}
+            <a href="/candidate/profile" className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">
+              Meu Perfil
+            </a>.
+          </p>
         </SectionCard>
 
-        {/* ── SEGURANÇA ──────────────────────────────────────────────────────── */}
+        {/* ── SEGURANÇA ───────────────────────────────────────────────────────── */}
         <SectionCard
           title="Segurança"
           subtitle="Altere sua senha e gerencie o acesso"
@@ -504,15 +473,14 @@ export default function SettingsPage() {
                 </button>
               </div>
 
-              {/* Força da senha */}
               {passwordStrength && (
                 <div className="mt-2 space-y-1">
                   <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div className={`h-full rounded-full transition-all duration-300 ${passwordStrength.color} ${passwordStrength.width}`} />
                   </div>
                   <p className={`text-xs font-bold ${
-                    passwordStrength.label === "Forte" ? "text-emerald-600 dark:text-emerald-400" :
-                    passwordStrength.label === "Boa"   ? "text-indigo-600 dark:text-indigo-400" :
+                    passwordStrength.label === "Forte"    ? "text-emerald-600 dark:text-emerald-400" :
+                    passwordStrength.label === "Boa"      ? "text-indigo-600 dark:text-indigo-400" :
                     passwordStrength.label === "Razoável" ? "text-amber-600 dark:text-amber-400" :
                     "text-rose-500"
                   }`}>
@@ -572,8 +540,7 @@ export default function SettingsPage() {
                 className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition font-bold text-sm group"
               >
                 <div className="flex items-center gap-3">
-                  <LogOut className="w-4 h-4" />
-                  Sair da conta
+                  <LogOut className="w-4 h-4" /> Sair da conta
                 </div>
                 <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition" />
               </button>
@@ -581,7 +548,7 @@ export default function SettingsPage() {
           </div>
         </SectionCard>
 
-        {/* ── APARÊNCIA ──────────────────────────────────────────────────────── */}
+        {/* ── APARÊNCIA ───────────────────────────────────────────────────────── */}
         <SectionCard
           title="Aparência"
           subtitle="Personalize o visual da plataforma"
@@ -591,8 +558,8 @@ export default function SettingsPage() {
           <p className="text-sm font-black text-slate-700 dark:text-slate-300 mb-4">Tema</p>
           <div className="grid grid-cols-3 gap-3">
             {([
-              { value: "light", label: "Claro", icon: Sun },
-              { value: "dark",  label: "Escuro", icon: Moon },
+              { value: "light",  label: "Claro",   icon: Sun },
+              { value: "dark",   label: "Escuro",  icon: Moon },
               { value: "system", label: "Sistema", icon: Monitor },
             ] as const).map(({ value, label, icon: Icon }) => (
               <button
@@ -615,46 +582,64 @@ export default function SettingsPage() {
           </div>
         </SectionCard>
 
-        {/* ── NOTIFICAÇÕES ───────────────────────────────────────────────────── */}
+        {/* ── NOTIFICAÇÕES ────────────────────────────────────────────────────── */}
         <SectionCard
           title="Notificações"
-          subtitle="Escolha o que você quer receber"
+          subtitle="Escolha o que você quer receber por e-mail"
           icon={Bell}
           iconColor="bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400"
         >
-          <div className="space-y-5">
-            {([
-              {
-                label: "Novidades por e-mail",
-                desc: "Dicas, atualizações e novidades da plataforma",
-                value: notifEmail,
-                onChange: setNotifEmail,
-              },
-              {
-                label: "Novas vagas compatíveis",
-                desc: "Alerta quando uma vaga com alto match for publicada",
-                value: notifVagas,
-                onChange: setNotifVagas,
-              },
-              {
-                label: "Atualização de candidaturas",
-                desc: "Mudanças no status das suas candidaturas ativas",
-                value: notifCandidaturas,
-                onChange: setNotifCandidaturas,
-              },
-            ]).map(({ label, desc, value, onChange }) => (
-              <div key={label} className="flex items-center justify-between gap-6">
-                <div>
-                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{label}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>
+          {loadingPrefs ? (
+            <div className="flex items-center gap-3 text-slate-400 text-sm py-4">
+              <Loader2 className="w-4 h-4 animate-spin" /> Carregando preferências...
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {([
+                {
+                  key: "email_candidatura" as const,
+                  label: "Confirmação de candidatura",
+                  desc: "Receba um aviso quando sua candidatura for registrada",
+                },
+                {
+                  key: "email_status" as const,
+                  label: "Atualização de status",
+                  desc: "Mudanças no status das suas candidaturas ativas",
+                },
+                {
+                  key: "email_novidades" as const,
+                  label: "Novidades da plataforma",
+                  desc: "Dicas, atualizações e novas funcionalidades",
+                },
+              ]).map(({ key, label, desc }) => (
+                <div key={key} className="flex items-center justify-between gap-6">
+                  <div>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{label}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>
+                  </div>
+                  <Toggle
+                    value={prefs[key]}
+                    onChange={(v) => handleTogglePref(key, v)}
+                    disabled={savingPrefs}
+                  />
                 </div>
-                <Toggle value={value} onChange={onChange} />
-              </div>
-            ))}
-          </div>
+              ))}
+
+              {/* Botão de salvar explícito (além do auto-save por toggle) */}
+              <button
+                onClick={handleSavePrefs}
+                disabled={savingPrefs}
+                className="w-full mt-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-700 dark:text-slate-300 py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2"
+              >
+                {savingPrefs
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</>
+                  : <><Save className="w-4 h-4" /> Salvar preferências</>}
+              </button>
+            </div>
+          )}
         </SectionCard>
 
-        {/* ── ZONA DE PERIGO ─────────────────────────────────────────────────── */}
+        {/* ── ZONA DE PERIGO ──────────────────────────────────────────────────── */}
         <div className="bg-rose-50 dark:bg-rose-500/5 border border-rose-200 dark:border-rose-500/20 rounded-3xl p-8">
           <div className="flex items-center gap-4 mb-6">
             <div className="w-11 h-11 rounded-2xl bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 flex items-center justify-center">
@@ -679,15 +664,13 @@ export default function SettingsPage() {
               onClick={() => setShowDeleteModal(true)}
               className="shrink-0 bg-rose-600 hover:bg-rose-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition shadow-lg shadow-rose-500/20 flex items-center gap-2"
             >
-              <Trash2 className="w-4 h-4" />
-              Excluir conta
+              <Trash2 className="w-4 h-4" /> Excluir conta
             </button>
           </div>
         </div>
 
       </div>
 
-      {/* Modal de exclusão */}
       {showDeleteModal && (
         <DeleteModal
           onClose={() => setShowDeleteModal(false)}
@@ -696,7 +679,6 @@ export default function SettingsPage() {
         />
       )}
 
-      {/* Toasts */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );

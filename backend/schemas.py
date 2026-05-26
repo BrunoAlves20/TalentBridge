@@ -63,7 +63,28 @@ class OnboardingPayload(BaseModel):
     softSkills: List[str]
 
 
-# ── Perfil ────────────────────────────────────────────────────────────────────
+# ── Gestão de Conta ───────────────────────────────────────────────────────────
+# EsqueceuSenhaRequest, VerificarCodigoRequest e RedefinirSenhaRequest foram
+# removidos — o fluxo de recuperação de senha agora usa POST /auth/send-code
+# e POST /auth/verify-code (routers/auth_otp.py + tabela codigos_verificacao).
+
+class AlterarSenhaRequest(BaseModel):
+    usuario_id: int
+    senha_atual: str
+    nova_senha: str
+
+
+class PreferenciasUpdate(BaseModel):
+    """
+    Todos os campos são opcionais — apenas os enviados serão atualizados
+    (merge com as preferências existentes no banco).
+    """
+    email_candidatura: Optional[bool] = None
+    email_status: Optional[bool] = None
+    email_novidades: Optional[bool] = None
+
+
+# ── Perfil candidato ──────────────────────────────────────────────────────────
 
 class PerfilUpdate(BaseModel):
     usuario_id: int
@@ -80,3 +101,48 @@ class PerfilUpdate(BaseModel):
     portfolio: str
     about: str
     profilePicture: Optional[str] = ""
+
+
+# ── Recrutador — Vagas ────────────────────────────────────────────────────────
+
+class VagaCreate(BaseModel):
+    recrutador_id: int
+    titulo: str
+    departamento: Optional[str] = ""
+    descricao: str
+    requisitos: Optional[str] = ""
+    modalidade: str = "PRESENCIAL"
+    localizacao: Optional[str] = ""
+    faixa_salarial: Optional[str] = ""
+
+
+class VagaUpdate(BaseModel):
+    recrutador_id: int
+    titulo: str
+    departamento: Optional[str] = ""
+    descricao: str
+    requisitos: Optional[str] = ""
+    modalidade: str = "PRESENCIAL"
+    localizacao: Optional[str] = ""
+    faixa_salarial: Optional[str] = ""
+    status: str = "ABERTA"
+
+
+# ── Recrutador — Candidaturas ─────────────────────────────────────────────────
+
+class CandidaturaStatusUpdate(BaseModel):
+    status: str
+
+
+# ── Candidato — Candidaturas ──────────────────────────────────────────────────
+
+class CandidaturaCreate(BaseModel):
+    vaga_id: int
+    candidato_id: int
+
+
+# ── Candidato — Vagas Salvas ──────────────────────────────────────────────────
+
+class VagaSalvaCreate(BaseModel):
+    usuario_id: int
+    vaga_id: int

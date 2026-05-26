@@ -37,10 +37,10 @@ export function Navbar() {
 
                         {/* CTAs */}
                         <div className="flex items-center space-x-4 border-l border-slate-300 dark:border-slate-800 pl-4 md:pl-6">
-                            <Link href="/login" className="hidden md:inline-flex text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors">
+                            <Link href="/auth/login" className="hidden md:inline-flex text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors">
                                 Entrar
                             </Link>
-                            <Link href="/register" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm">
+                            <Link href="/auth/register" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm">
                                 Criar Conta
                             </Link>
                         </div>
