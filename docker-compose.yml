@@ -1,12 +1,36 @@
 services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-1234}
+      MYSQL_DATABASE: ${DB_NAME:-talentbridge}
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD:-1234}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
     env_file:
       - backend/.env
+    environment:
+      # Sobrescreve DB_HOST para apontar ao serviço do compose
+      DB_HOST: db
+      DB_PORT: 3306
+    depends_on:
+      db:
+        condition: service_healthy
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -15,18 +39,24 @@ services:
     volumes:
       - ./backend:/app
       - ./Database:/app/Database
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/docs"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+    restart: unless-stopped
     ports:
       - "3000:3000"
     depends_on:
       - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_DEV_MODE: ${NEXT_PUBLIC_DEV_MODE:-true}
 
 volumes:
   db_data:

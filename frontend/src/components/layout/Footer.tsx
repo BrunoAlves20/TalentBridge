@@ -24,23 +24,23 @@ export function Footer() {
                         <h3 className="text-slate-900 dark:text-white font-semibold mb-4">Para Candidatos</h3>
                         <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
                             <li>
-                                <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+                                <Link href="/auth/register?role=CANDIDATO" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
                                     Encontrar Vagas
                                 </Link>
                             </li>
                             <li>
-                                <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+                                <Link href="/auth/register?role=CANDIDATO" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
                                     Coach de IA
                                 </Link>
                             </li>
                             <li>
-                                <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+                                <Link href="/auth/register?role=CANDIDATO" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
                                     Preparação para Entrevistas
                                 </Link>
                             </li>
                             <li>
-                                <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
-                                    Dicas de Carreira
+                                <Link href="/auth/login" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+                                    Já tenho conta
                                 </Link>
                             </li>
                         </ul>
@@ -51,23 +51,23 @@ export function Footer() {
                         <h3 className="text-slate-900 dark:text-white font-semibold mb-4">Para Empresas</h3>
                         <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
                             <li>
-                                <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+                                <Link href="/auth/register?role=RECRUTADOR" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
                                     Publicar Vagas
                                 </Link>
                             </li>
                             <li>
-                                <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+                                <Link href="/auth/register?role=RECRUTADOR" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
                                     ATS Inteligente
                                 </Link>
                             </li>
                             <li>
-                                <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
-                                    Planos e Preços
+                                <Link href="/auth/register?role=RECRUTADOR" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+                                    Acessar Painel
                                 </Link>
                             </li>
                             <li>
-                                <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
-                                    Cases de Sucesso
+                                <Link href="/auth/login" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+                                    Já tenho conta
                                 </Link>
                             </li>
                         </ul>
@@ -100,13 +100,13 @@ export function Footer() {
                             © {new Date().getFullYear()} Talent Bridge. Todos os direitos reservados.
                         </p>
                         <div className="flex space-x-6 text-sm text-slate-600 dark:text-slate-400">
-                            <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+                            <Link href="/legal/termos" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
                                 Termos de Uso
                             </Link>
-                            <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+                            <Link href="/legal/privacidade" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
                                 Política de Privacidade
                             </Link>
-                            <Link href="#" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
+                            <Link href="/legal/cookies" className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors duration-200">
                                 Cookies
                             </Link>
                         </div>

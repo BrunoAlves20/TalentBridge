@@ -1,6 +1,7 @@
 // frontend/src/services/auth.ts
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const TOKEN_KEY = "@TalentBridge:token";
 
 export type UserRole = "CANDIDATO" | "RECRUTADOR";
 
@@ -10,6 +11,21 @@ export interface User {
   email: string;
   role: UserRole;
   onboarding_completo?: boolean;
+}
+
+/** Lê o JWT do localStorage (somente no cliente). */
+export function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+/** Helper para montar headers autenticados em chamadas à API. */
+export function authHeaders(extra?: HeadersInit): HeadersInit {
+  const token = getAuthToken();
+  return {
+    ...(extra || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
 }
 
 export const authService = {
@@ -22,6 +38,11 @@ export const authService = {
 
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || "Erro ao fazer login");
+
+    // Armazena o JWT para chamadas subsequentes (ex.: simulador)
+    if (typeof window !== "undefined" && data.access_token) {
+      localStorage.setItem(TOKEN_KEY, data.access_token);
+    }
 
     return {
       id: data.usuario.id,
@@ -43,5 +64,13 @@ export const authService = {
     if (!response.ok) throw new Error(data.detail || "Erro ao cadastrar usuário");
 
     return data; // { mensagem: "...", id: 1 }
+  },
+
+  logout() {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem("@TalentBridge:user");
+    localStorage.removeItem("usuario_id");
+    localStorage.removeItem("@TalentBridge:OnboardingData");
   },
 };

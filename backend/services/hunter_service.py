@@ -12,8 +12,21 @@ HUNTER_API_KEY: str = os.getenv("HUNTER_API_KEY", "")
 HUNTER_ENDPOINT = "https://api.hunter.io/v2/email-verifier"
 HUNTER_TIMEOUT_SECONDS = 8
 
+# Em DEV_MODE o fluxo é fail-open total para não exigir chave externa em dev.
+# Em produção (DEV_MODE=false) qualquer falha torna-se fail-closed por segurança.
+DEV_MODE = os.getenv("DEV_MODE", "true").lower() == "true"
+
 # Resultados que permitem prosseguir
 _RESULTADOS_PERMITIDOS = {"deliverable", "risky"}
+
+
+def _fallback(email: str, motivo: str) -> bool:
+    """Decide o que fazer quando a Hunter falha — depende do modo."""
+    if DEV_MODE:
+        logger.warning(f"[Hunter] {motivo} — fail-open (DEV_MODE) para {email}.")
+        return True
+    logger.error(f"[Hunter] {motivo} — fail-closed (produção) para {email}.")
+    return False
 
 
 def verify_email(email: str) -> bool:
@@ -21,19 +34,15 @@ def verify_email(email: str) -> bool:
     Consulta a API Hunter.io para verificar se o e-mail é real e entregável.
 
     Retorna:
-      - True  → e-mail é deliverable ou risky (permitir cadastro)
-      - False → e-mail é undeliverable ou unknown (bloquear)
+      - True  → e-mail deliverable/risky (permitir cadastro)
+      - False → e-mail undeliverable/unknown (bloquear)
 
-    Comportamento de resiliência (fail-open):
-      Se a API da Hunter estiver indisponível (timeout, erro 5xx ou chave ausente),
-      o método loga o erro e retorna True para não bloquear o usuário por
-      falha de terceiros.
+    Em caso de falha (timeout, 5xx, chave ausente):
+      - DEV_MODE=true  → retorna True (fail-open) para não atrapalhar testes locais
+      - DEV_MODE=false → retorna False (fail-closed) para não aceitar e-mail não validado
     """
     if not HUNTER_API_KEY:
-        logger.warning(
-            "[Hunter] HUNTER_API_KEY não configurada — verificação ignorada (fail-open)."
-        )
-        return True
+        return _fallback(email, "HUNTER_API_KEY não configurada")
 
     try:
         response = httpx.get(
@@ -53,14 +62,8 @@ def verify_email(email: str) -> bool:
         return result in _RESULTADOS_PERMITIDOS
 
     except httpx.TimeoutException:
-        logger.error(f"[Hunter] Timeout ao verificar {email} — fail-open aplicado.")
-        return True
+        return _fallback(email, "Timeout na Hunter.io")
     except httpx.HTTPStatusError as exc:
-        logger.error(
-            f"[Hunter] Erro HTTP {exc.response.status_code} ao verificar {email} "
-            f"— fail-open aplicado."
-        )
-        return True
+        return _fallback(email, f"HTTP {exc.response.status_code} na Hunter.io")
     except Exception as exc:
-        logger.error(f"[Hunter] Erro inesperado ao verificar {email}: {exc} — fail-open aplicado.")
-        return True
+        return _fallback(email, f"Erro inesperado: {exc}")

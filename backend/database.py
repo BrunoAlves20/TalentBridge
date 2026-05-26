@@ -87,3 +87,57 @@ def init_db():
 
     except Error as e:
         logger.error(f"Erro ao criar tabelas: {e}")
+        return
+
+    # Etapa 3 — popula dados de exemplo (idempotente: usa INSERT IGNORE).
+    # Só roda se o banco estiver "vazio o suficiente" — ou seja, sem nenhum
+    # usuário ainda cadastrado. Isso evita rodar o seed em produção.
+    try:
+        seed_path = os.path.join(os.path.dirname(__file__), "Database", "seed.sql")
+        if not os.path.exists(seed_path):
+            logger.info("seed.sql não encontrado — pulando seed.")
+            return
+
+        conn = connect(host=host, user=user, password=password, port=port, database=db_name)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT COUNT(*) FROM usuarios")
+        (total_usuarios,) = cursor.fetchone()
+
+        if total_usuarios > 0:
+            logger.info(
+                f"Seed pulado — já existem {total_usuarios} usuário(s) no banco."
+            )
+            cursor.close()
+            conn.close()
+            return
+
+        with open(seed_path, "r", encoding="utf-8") as f:
+            seed_sql = f.read()
+
+        # O seed usa muitos UNION ALL / subqueries, então preciso executar
+        # statement-a-statement, ignorando linhas em branco e comentários.
+        statements = []
+        buffer = []
+        for line in seed_sql.splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("--"):
+                continue
+            buffer.append(line)
+            if stripped.endswith(";"):
+                statements.append("\n".join(buffer))
+                buffer = []
+
+        for stmt in statements:
+            try:
+                cursor.execute(stmt)
+            except Error as e:
+                logger.warning(f"Falha ao executar statement do seed (ignorando): {e}")
+
+        conn.commit()
+        logger.info(f"Seed aplicado com sucesso ({len(statements)} statements).")
+        cursor.close()
+        conn.close()
+
+    except Error as e:
+        logger.error(f"Erro ao aplicar seed: {e}")

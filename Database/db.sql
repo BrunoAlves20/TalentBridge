@@ -141,7 +141,29 @@ CREATE TABLE IF NOT EXISTS codigos_verificacao (
     criado_em        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- 11. Índices Adicionais para Otimização (Seguros para MySQL < 8.0.12)
+-- 11. Tabelas do Simulador de Entrevistas com IA
+CREATE TABLE IF NOT EXISTS simulador_sessoes (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    usuario_id   INT NOT NULL,
+    titulo       VARCHAR(255) NULL,
+    cargo_alvo   VARCHAR(255) NULL,
+    status       ENUM('EM_ANDAMENTO', 'FINALIZADA') NOT NULL DEFAULT 'EM_ANDAMENTO',
+    feedback     TEXT NULL,
+    criado_em    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    finalizado_em TIMESTAMP NULL DEFAULT NULL,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS simulador_mensagens (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    sessao_id   INT NOT NULL,
+    role        ENUM('assistant', 'user') NOT NULL,
+    conteudo    TEXT NOT NULL,
+    criado_em   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sessao_id) REFERENCES simulador_sessoes(id) ON DELETE CASCADE
+);
+
+-- 12. Índices Adicionais para Otimização (Seguros para MySQL < 8.0.12)
 
 -- Índice em candidaturas(candidato_id)
 SET @idx1 = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'candidaturas' AND INDEX_NAME = 'idx_candidaturas_candidato');

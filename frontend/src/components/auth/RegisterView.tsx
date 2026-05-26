@@ -8,7 +8,7 @@
  */
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { UserRole } from "@/services/auth";
 import { EmailVerificationModal, type VerifySuccessPayload } from "@/components/auth/EmailVerificationModal";
 import { Mail, Lock, Loader2, ArrowRight, User, Briefcase, UserCircle } from "lucide-react";
@@ -19,11 +19,18 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 export function RegisterView() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Permite pré-selecionar o papel via ?role=CANDIDATO ou ?role=RECRUTADOR
+  // (usado pelos botões da landing page: "Encontrar Vagas" / "Contratar Talentos")
+  const roleFromQuery = searchParams.get("role");
+  const initialRole: UserRole =
+    roleFromQuery === "RECRUTADOR" ? "RECRUTADOR" : "CANDIDATO";
 
   const [name, setName]         = useState("");
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole]         = useState<UserRole>("CANDIDATO");
+  const [role, setRole]         = useState<UserRole>(initialRole);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError]         = useState("");
@@ -59,11 +66,20 @@ export function RegisterView() {
       name,
       email: payload.email || email,
       role:  (payload.tipo_usuario as UserRole) || role,
+      onboarding_completo: false,
     };
     localStorage.removeItem("@TalentBridge:OnboardingData");
     sessionStorage.removeItem("@TalentBridge:OnboardingData");
     localStorage.setItem("@TalentBridge:user", JSON.stringify(userData));
     localStorage.setItem("usuario_id", userData.id.toString());
+
+    // Persiste o JWT retornado pelo backend após a verificação do OTP.
+    // Sem isso o usuário ficaria sem token e qualquer rota autenticada
+    // (ex.: /simulador) retornaria 401.
+    if (payload.access_token) {
+      localStorage.setItem("@TalentBridge:token", payload.access_token);
+    }
+
     router.push(userData.role === "RECRUTADOR" ? "/recruiter/dashboard" : "/candidate/onboarding");
   }
 

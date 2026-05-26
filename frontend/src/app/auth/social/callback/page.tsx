@@ -12,11 +12,11 @@
  * a rota correta (dashboard ou onboarding).
  */
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-export default function SocialCallbackPage() {
+function SocialCallbackInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
@@ -71,5 +71,20 @@ export default function SocialCallbackPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function SocialCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-muted-foreground">
+          <Loader2 className="animate-spin h-8 w-8" />
+          <p className="text-sm">Carregando...</p>
+        </div>
+      }
+    >
+      <SocialCallbackInner />
+    </Suspense>
   );
 }

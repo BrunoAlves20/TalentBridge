@@ -25,6 +25,9 @@ export interface VerifySuccessPayload {
   email?: string;
   tipo_usuario?: string;
   novo_email?: string;
+  /** JWT emitido pelo backend após verificação de cadastro */
+  access_token?: string;
+  token_type?: string;
 }
 
 /** Dados extras repassados no body do /auth/send-code durante reenvio */

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Briefcase, LayoutDashboard, ListChecks, GitBranch,
-  Award, LogOut, Users
+  LogOut, Users
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
@@ -12,8 +12,7 @@ const navItems = [
   { name: "Dashboard",       href: "/recruiter/dashboard", icon: LayoutDashboard },
   { name: "Vagas",           href: "/recruiter/jobs",      icon: ListChecks },
   { name: "Pipeline",        href: "/recruiter/pipeline",  icon: GitBranch },
-  { name: "Ranking",         href: "/recruiter/ranking",   icon: Award },
-  { name: "Banco Talentos",  href: "/recruiter/talents",   icon: Users },
+  { name: "Banco de Talentos",  href: "/recruiter/talents",   icon: Users },
 ];
 
 export function RecruiterNavbar() {

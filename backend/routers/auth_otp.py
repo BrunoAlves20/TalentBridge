@@ -26,7 +26,7 @@ from typing import Optional
 
 from database import get_db_connection
 from services.email_service import gerar_codigo_otp, enviar_codigo_verificacao
-from services.auth_service import hash_password
+from services.auth_service import hash_password, create_access_token
 from services.hunter_service import verify_email as hunter_verify
 
 router = APIRouter(
@@ -328,7 +328,23 @@ def verify_code(dados: VerifyCodeRequest):
             )
             novo_id = cursor.lastrowid
             conn.commit()
-            return {"mensagem": "Cadastro confirmado com sucesso!", "usuario_id": novo_id, "email": email, "tipo_usuario": tipo_usuario}
+
+            # Gera o JWT do usuário recém-cadastrado para que ele já
+            # entre logado no sistema (sem precisar passar pelo /usuarios/login).
+            access_token = create_access_token(
+                user_id=novo_id,
+                email=email,
+                role=tipo_usuario,
+            )
+
+            return {
+                "mensagem": "Cadastro confirmado com sucesso!",
+                "usuario_id": novo_id,
+                "email": email,
+                "tipo_usuario": tipo_usuario,
+                "access_token": access_token,
+                "token_type": "bearer",
+            }
 
         if tipo == "recuperacao":
             nova_senha = pendentes.get("nova_senha", "")

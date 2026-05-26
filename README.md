@@ -20,8 +20,9 @@ O **TalentBridge** é uma aplicação moderna que conecta candidatos e recrutado
 ## 📋 Pré-requisitos
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e rodando
-- [MySQL](https://www.mysql.com/) instalado e rodando na máquina
-- Chave de API do [Google Gemini](https://aistudio.google.com/app/apikey)
+- Chave de API do [Google Gemini](https://aistudio.google.com/app/apikey) — **opcional em DEV_MODE**
+
+> A partir desta versão, o **MySQL roda como um serviço do Docker Compose** — você não precisa mais instalar MySQL na máquina. Quem já tinha MySQL local pode continuar usando alterando `DB_HOST` para `host.docker.internal` no `.env`.
 
 ---
 
@@ -55,7 +56,7 @@ Após instalar, os ícones aparecem na barra lateral do VS Code. Para conectar o
 - Host: `127.0.0.1`
 - Port: `3306`
 - User: `root`
-- Password: sua senha do MySQL local
+- Password: `1234`
 - Database: `talentbridge`
 
 ---
@@ -68,22 +69,32 @@ git clone <url-do-repositorio>
 cd TalentBridge
 ```
 
-2. Copie o arquivo de exemplo e preencha suas credenciais:
+2. Copie os arquivos de exemplo e preencha suas credenciais:
 ```bash
 cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
 ```
 
-3. Abra o `backend/.env` e preencha:
+3. Abra o `backend/.env`. Para rodar **apenas com Docker Compose** (recomendado), os valores padrão já apontam para o MySQL containerizado. Você só precisa de:
+
 ```env
-DB_HOST=host.docker.internal
-DB_USER=seu_usuario_mysql
-DB_PASSWORD=sua_senha_mysql
+# Banco — o docker-compose sobrescreve DB_HOST=db automaticamente
+DB_USER=root
+DB_PASSWORD=rootpassword
 DB_NAME=talentbridge
 DB_PORT=3306
-GEMINI_API_KEY=sua_chave_aqui
+
+# JWT — gere com:  python -c "import secrets; print(secrets.token_hex(32))"
+JWT_SECRET=substitua_por_uma_string_aleatoria
+
+# IA — opcional em DEV_MODE (simulador e extração de CV funcionam offline)
+GEMINI_API_KEY=
+
+# DEV_MODE=true → OTP fixo 000000, sem Hunter.io, sem SMTP, social desativado
+DEV_MODE=true
 ```
 
-> O `DB_HOST=host.docker.internal` é obrigatório — é o endereço especial que o Docker usa para acessar o MySQL da sua máquina.
+> Se você prefere usar um MySQL já instalado na sua máquina, comente o serviço `db` no `docker-compose.yml` e defina `DB_HOST=host.docker.internal` no `.env`.
 
 ---
 
@@ -116,6 +127,9 @@ As imagens já estão prontas, então sobe muito mais rápido.
 | **Frontend** | http://localhost:3000 |
 | **Backend** | http://localhost:8000 |
 | **Documentação da API** | http://localhost:8000/docs |
+| **MySQL (no container)** | localhost:3307 (root / `rootpassword` por padrão) |
+
+> ⚠ O MySQL do Docker é exposto na porta **3307** para não conflitar com um MySQL local na porta 3306, caso você já tenha um.
 
 ---
 
@@ -230,6 +244,23 @@ docker-compose logs -f
 | `LINKEDIN_REDIRECT_URI` | URI de callback do LinkedIn OAuth |
 | `FRONTEND_URL` | URL do frontend (usada pelo backend no redirect OAuth) |
 | `DEV_MODE` | `true` = modo de desenvolvimento / `false` = produção real |
+
+---
+
+## 🧠 Simulador de Entrevistas com IA
+
+O simulador (`/simulator`) conduz uma entrevista técnica + comportamental usando o Google Gemini, persiste cada sessão no banco e gera um feedback final em formato STAR.
+
+| Endpoint | Método | Descrição |
+| :--- | :--- | :--- |
+| `/simulador/sessoes` | `POST` | Cria uma sessão e devolve a saudação inicial |
+| `/simulador/sessoes` | `GET` | Lista sessões do usuário autenticado |
+| `/simulador/sessoes/{id}` | `GET` | Detalhe da sessão (mensagens + status) |
+| `/simulador/sessoes/{id}/mensagens` | `POST` | Envia resposta e recebe a próxima pergunta |
+| `/simulador/sessoes/{id}/finalizar` | `POST` | Encerra a sessão e gera o feedback final |
+| `/simulador/sessoes/{id}` | `DELETE` | Exclui a sessão e todas as mensagens |
+
+> Em **DEV_MODE** o simulador usa perguntas e feedback determinísticos — você não precisa de chave Gemini para testar.
 
 ---
 

@@ -1,5 +1,12 @@
+import { Suspense } from "react";
 import { LoginRegisterView } from "@/components/auth/LoginRegisterView";
 
+export const dynamic = "force-dynamic";
+
 export default function LoginPage() {
-  return <LoginRegisterView initialMode="login" />;
+  return (
+    <Suspense fallback={null}>
+      <LoginRegisterView initialMode="login" />
+    </Suspense>
+  );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Mic, CheckCircle, Sparkles } from 'lucide-react';
 import { aiInterviewQuestion, mockAIFeedback } from '@/data/mockData';
 
@@ -135,9 +136,12 @@ export function AICoachTeaser() {
                     </div>
 
                     <div className="mt-12 text-center">
-                        <button className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-8 py-4 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/20 hover:-translate-y-1">
+                        <Link
+                            href="/auth/register?role=CANDIDATO"
+                            className="inline-block bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-8 py-4 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-emerald-500/20 hover:-translate-y-1"
+                        >
                             Criar Conta e Começar Treino Gratuito
-                        </button>
+                        </Link>
                     </div>
                 </div>
             </div>
