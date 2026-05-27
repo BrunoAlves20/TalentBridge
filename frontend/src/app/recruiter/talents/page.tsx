@@ -21,6 +21,7 @@ import {
   AlertCircle, ChevronDown, Mail, X, ExternalLink,
   CheckCircle2, Star, Award, Filter, TrendingUp
 } from "lucide-react";
+import { apiFetch } from "@/services/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -40,7 +41,7 @@ interface Candidato {
   status_candidatura: string;
   hard_skills: string[];
   soft_skills: string[];
-  skills_compatíveis: string[];
+  skills_compativeis: string[];
   match_score: number;
 }
 
@@ -186,13 +187,13 @@ function CandidatoDrawer({
           </div>
 
           {/* Skills compatíveis */}
-          {candidato["skills_compatíveis"]?.length > 0 && (
+          {candidato["skills_compativeis"]?.length > 0 && (
             <div>
               <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-3">
                 Skills compatíveis com a vaga
               </p>
               <div className="space-y-1.5">
-                {candidato["skills_compatíveis"].map((s, idx) => (
+                {candidato["skills_compativeis"].map((s, idx) => (
                   <div key={`sc-${idx}`} className="flex items-center gap-2 text-sm">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                     <span className="text-slate-700 dark:text-slate-300">{s}</span>
@@ -273,7 +274,7 @@ export default function BancoTalentosPage() {
   // ── Carrega vagas do recrutador ────────────────────────────────────────────
   useEffect(() => {
     if (!recrutadorId) return;
-    fetch(`${API_URL}/recrutador/minhas-vagas/${recrutadorId}`)
+    apiFetch(`${API_URL}/recrutador/minhas-vagas/${recrutadorId}`)
       .then((r) => r.json())
       .then((data) => setVagas(data.vagas ?? []))
       .catch(() => {});
@@ -288,7 +289,7 @@ export default function BancoTalentosPage() {
       const url = vagaId
         ? `${API_URL}/recrutador/ranking/${recrutadorId}?vaga_id=${vagaId}`
         : `${API_URL}/recrutador/ranking/${recrutadorId}`;
-      const res = await fetch(url);
+      const res = await apiFetch(url);
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail);
       setCandidatos(data.ranking ?? []);
@@ -304,7 +305,7 @@ export default function BancoTalentosPage() {
   // ── Ação: avançar candidato para EM_ANALISE ───────────────────────────────
   const handleAdvance = async (candidaturaId: number) => {
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `${API_URL}/recrutador/candidaturas/${candidaturaId}/status`,
         {
           method: "PUT",

@@ -132,20 +132,37 @@ def social_callback(provider: str, code: str = None, error: str = None):
                     """,
                     (nome, email, social_id, provider),
                 )
-                conn.commit()
                 novo_id = cursor.lastrowid
+
+                # Login social cria sempre como CANDIDATO → cria a linha de
+                # perfil mínima para manter consistência com o cadastro normal.
+                cursor.execute(
+                    """
+                    INSERT IGNORE INTO perfis_candidatos
+                        (usuario_id, telefone, genero, idade, estado, cidade, cep,
+                         linkedin, github, portfolio, sobre_mim, foto_perfil)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (novo_id, None, None, None, None, None, None,
+                     None, None, None, None, None),
+                )
+
+                conn.commit()
                 cursor.execute(
                     "SELECT id, nome, email, tipo_usuario FROM usuarios WHERE id = %s",
                     (novo_id,),
                 )
                 usuario = cursor.fetchone()
 
-        # Verifica se o onboarding foi concluído
+        # Verifica se o onboarding foi concluído (cidade preenchida = passou
+        # pelo passo 1 do onboarding). A linha pode existir vazia desde o
+        # cadastro inicial.
         cursor.execute(
-            "SELECT usuario_id FROM perfis_candidatos WHERE usuario_id = %s",
+            "SELECT cidade FROM perfis_candidatos WHERE usuario_id = %s",
             (usuario["id"],),
         )
-        tem_perfil = cursor.fetchone() is not None
+        perfil_row = cursor.fetchone()
+        tem_perfil = bool(perfil_row and perfil_row["cidade"])
 
         # Gera JWT do sistema
         token = create_access_token(
@@ -167,6 +184,11 @@ def social_callback(provider: str, code: str = None, error: str = None):
         return RedirectResponse(redirect_base)
 
     except Exception as e:
+        # Loga a stack para diagnóstico em produção (sem isso, debug é impossível).
+        import logging, traceback
+        logging.getLogger(__name__).error(
+            "[auth_social] Erro inesperado no callback: %s\n%s", e, traceback.format_exc()
+        )
         conn.rollback()
         return RedirectResponse(f"{FRONTEND_URL}/auth/login?social_error=erro_interno")
     finally:

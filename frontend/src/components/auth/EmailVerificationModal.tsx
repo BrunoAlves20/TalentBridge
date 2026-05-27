@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState, useCallback, KeyboardEvent, ClipboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Loader2, CheckCircle2, AlertCircle, Mail, RefreshCw } from "lucide-react";
+import { apiFetch } from "@/services/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true";
@@ -169,7 +170,7 @@ export function EmailVerificationModal({
     setVerifyStatus("loading");
     setErrorMsg("");
     try {
-      const res = await fetch(`${API_URL}/auth/verify-code`, {
+      const res = await apiFetch(`${API_URL}/auth/verify-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, codigo: codigoCompleto, tipo }),
@@ -194,7 +195,7 @@ export function EmailVerificationModal({
     try {
       const body: Record<string, unknown> = { email, tipo, ...pendingData };
 
-      const res = await fetch(`${API_URL}/auth/send-code`, {
+      const res = await apiFetch(`${API_URL}/auth/send-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

@@ -1,9 +1,10 @@
 "use client";
 
-import { API_URL } from "@/lib/api";
-
+import { apiFetch } from "@/services/auth";
 
 import { useState, useRef } from "react";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 import { UploadCloud, FileEdit, Sparkles, Loader2, File, CheckCircle2 } from "lucide-react";
 import { useOnboarding } from "@/contexts/OnboardingContext"; // Importação do contexto adicionada
 
@@ -64,7 +65,7 @@ export function Step1Choice({ onSelectMethod }: Step1ChoiceProps) {
       setUploadState("extracting");
 
       // 2. Dispara o arquivo para o Python
-      const response = await fetch(`${API_URL}/candidatos/extrair-cv`, {
+      const response = await apiFetch(`${API_URL}/candidatos/extrair-cv`, {
         method: "POST",
         body: formData,
       });

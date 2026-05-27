@@ -40,7 +40,7 @@ services:
       - ./backend:/app
       - ./Database:/app/Database
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/docs"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -49,12 +49,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      # Next.js inlina NEXT_PUBLIC_* no bundle em tempo de build; precisamos
+      # passar via build.args, não via environment (runtime), senão o JS
+      # compilado fica com o fallback do Dockerfile.
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_DEV_MODE: ${NEXT_PUBLIC_DEV_MODE:-true}
     restart: unless-stopped
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
+      # Repetimos em runtime caso alguma lib client precise (Next standalone
+      # também respeita env runtime para variáveis não-inline). Inofensivo.
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
       NEXT_PUBLIC_DEV_MODE: ${NEXT_PUBLIC_DEV_MODE:-true}
 

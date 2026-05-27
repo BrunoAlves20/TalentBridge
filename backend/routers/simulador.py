@@ -76,6 +76,7 @@ def _row_to_mensagem(row: Dict[str, Any]) -> MensagemOut:
 
 def _carregar_sessao(sessao_id: int, usuario_id: int) -> Dict[str, Any]:
     conn = _db()
+    cur = None
     try:
         cur = conn.cursor(dictionary=True)
         cur.execute(
@@ -95,6 +96,11 @@ def _carregar_sessao(sessao_id: int, usuario_id: int) -> Dict[str, Any]:
         sessao["mensagens"] = mensagens
         return sessao
     finally:
+        if cur is not None:
+            try:
+                cur.close()
+            except Exception:
+                pass
         conn.close()
 
 

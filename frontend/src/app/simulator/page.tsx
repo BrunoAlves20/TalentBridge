@@ -202,37 +202,40 @@ export default function SimulatorPage() {
     <div className="animate-in fade-in duration-500 h-full flex flex-col">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <BrainCircuit className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
+              <BrainCircuit className="w-5 h-5 text-white" aria-hidden="true" />
             </div>
-            <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
               Simulador de Entrevista
             </h1>
           </div>
-          <p className="text-slate-500 dark:text-slate-400 text-sm font-medium ml-[52px]">
+          <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium sm:ml-[52px]">
             Recrutador Virtual com IA · {msgCount} {msgCount === 1 ? "resposta" : "respostas"} nesta sessão
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {!finalizada && messages.length > 1 && (
             <button
+              type="button"
               onClick={handleFinalize}
               disabled={isTyping}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-300 dark:border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all text-sm font-bold disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] rounded-xl border border-emerald-300 dark:border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all text-sm font-bold disabled:opacity-50"
             >
-              <Flag className="w-4 h-4" />
-              Encerrar & Receber Feedback
+              <Flag className="w-4 h-4" aria-hidden="true" />
+              <span className="hidden sm:inline">Encerrar & Receber Feedback</span>
+              <span className="sm:hidden">Encerrar</span>
             </button>
           )}
           <button
+            type="button"
             onClick={handleReset}
             disabled={isTyping || loadingInit}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-sm font-bold disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-sm font-bold disabled:opacity-50"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4" aria-hidden="true" />
             Nova Sessão
           </button>
         </div>
@@ -244,10 +247,57 @@ export default function SimulatorPage() {
         </div>
       )}
 
-      <div className="flex gap-6 flex-1 min-h-0">
+      {/* Dicas mobile (acordeão nativo) — substituem o sidebar em < lg */}
+      <details className="lg:hidden mb-4 bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden shadow-sm group">
+        <summary className="cursor-pointer list-none p-4 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition min-h-[44px]">
+          <span className="flex items-center gap-2">
+            <span className={`w-2 h-2 rounded-full ${error ? "bg-rose-500" : "bg-emerald-500"}`} aria-hidden="true" />
+            <span className="text-sm font-bold text-slate-700 dark:text-slate-200">
+              Status & Dicas do Coach
+            </span>
+          </span>
+          <span className="text-xs font-bold text-slate-400 group-open:hidden">Mostrar</span>
+          <span className="text-xs font-bold text-slate-400 hidden group-open:inline">Ocultar</span>
+        </summary>
+        <div className="px-4 pb-4 space-y-4 border-t border-slate-100 dark:border-slate-800/50 pt-4">
+          {/* Status */}
+          <div>
+            <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Status da Sessão</p>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="flex justify-between bg-slate-50 dark:bg-slate-800/30 px-3 py-2 rounded-lg">
+                <span className="text-slate-500 dark:text-slate-400 font-medium">Respondidas</span>
+                <span className="font-black text-indigo-600 dark:text-indigo-400">{msgCount}</span>
+              </div>
+              <div className="flex justify-between bg-slate-50 dark:bg-slate-800/30 px-3 py-2 rounded-lg">
+                <span className="text-slate-500 dark:text-slate-400 font-medium">IA</span>
+                <span className={`font-black ${error ? "text-rose-500" : "text-emerald-600 dark:text-emerald-400"}`}>
+                  {error ? "Offline" : finalizada ? "Encerrada" : "Online"}
+                </span>
+              </div>
+            </div>
+          </div>
+          {/* Dicas */}
+          <div>
+            <p className="text-[10px] uppercase font-black text-slate-400 tracking-widest mb-2">Dicas do Coach</p>
+            <ul className="space-y-2">
+              {TIPS.map((tip, i) => {
+                const Icon = tip.icon;
+                return (
+                  <li key={i} className="flex gap-2">
+                    <Icon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" aria-hidden="true" />
+                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium">{tip.text}</p>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </div>
+      </details>
+
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 flex-1 min-h-0">
 
         {/* Chat */}
-        <div className="flex-1 flex flex-col bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-3xl overflow-hidden shadow-sm min-h-[500px]">
+        <div className="flex-1 flex flex-col bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm min-h-[60vh] sm:min-h-[500px]">
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-6 space-y-5">
@@ -279,21 +329,27 @@ export default function SimulatorPage() {
           )}
 
           {/* Input */}
-          <div className="p-4 border-t border-slate-100 dark:border-slate-800/50 flex gap-3 items-end">
+          <div className="p-3 sm:p-4 border-t border-slate-100 dark:border-slate-800/50 flex gap-2 sm:gap-3 items-end">
+            <label htmlFor="simulator-mic" className="sr-only">Microfone</label>
             <button
+              id="simulator-mic"
+              type="button"
               onClick={() => setMicActive(!micActive)}
               disabled={finalizada}
-              className={`p-3 rounded-xl border transition-all shrink-0 disabled:opacity-40 ${
+              aria-pressed={micActive}
+              aria-label={micActive ? "Desativar microfone" : "Ativar microfone (em breve)"}
+              className={`inline-flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-xl border transition-all shrink-0 disabled:opacity-40 ${
                 micActive
                   ? "bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20 text-rose-500"
                   : "border-slate-200 dark:border-slate-800 text-slate-400 hover:border-indigo-300 hover:text-indigo-500"
               }`}
-              title={micActive ? "Desativar microfone" : "Ativar microfone (em breve)"}
             >
-              {micActive ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              {micActive ? <MicOff className="w-5 h-5" aria-hidden="true" /> : <Mic className="w-5 h-5" aria-hidden="true" />}
             </button>
 
+            <label htmlFor="simulator-input" className="sr-only">Sua resposta</label>
             <textarea
+              id="simulator-input"
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -305,20 +361,22 @@ export default function SimulatorPage() {
               }
               rows={2}
               disabled={isTyping || finalizada || loadingInit}
-              className="flex-1 bg-slate-50 dark:bg-[#1A1D2D] border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 resize-none dark:text-white disabled:opacity-50 transition"
+              className="flex-1 bg-slate-50 dark:bg-[#1A1D2D] border border-slate-200 dark:border-slate-800 rounded-xl px-3 sm:px-4 py-3 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 resize-none dark:text-white disabled:opacity-50 transition min-h-[44px]"
             />
 
             <button
+              type="button"
               onClick={() => sendMessage(input)}
               disabled={!input.trim() || isTyping || finalizada || loadingInit}
-              className="p-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl transition-all shadow-md shadow-indigo-500/20 shrink-0"
+              aria-label="Enviar resposta"
+              className="inline-flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl transition-all shadow-md shadow-indigo-500/20 shrink-0"
             >
-              {isTyping ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+              {isTyping ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" /> : <Send className="w-5 h-5" aria-hidden="true" />}
             </button>
           </div>
         </div>
 
-        {/* Painel lateral de dicas */}
+        {/* Painel lateral de dicas (desktop) */}
         <div className="w-72 hidden lg:flex flex-col gap-4 shrink-0">
 
           {/* Status */}

@@ -22,7 +22,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 GEMINI_MODEL = "gemini-flash-latest"
-DEV_MODE = os.getenv("DEV_MODE", "true").lower() == "true"
+DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 
 _SYSTEM_PROMPT = """
 Você é um Recrutador Virtual sênior da TalentBridge conduzindo uma entrevista simulada

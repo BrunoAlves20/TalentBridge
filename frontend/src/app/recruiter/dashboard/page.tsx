@@ -4,12 +4,14 @@ import { useState, useMemo, useEffect } from "react";
 import {
   Briefcase, Users, UserCheck, Calendar, Award, TrendingUp,
   Search, ChevronLeft, ChevronRight, Mail, CheckCircle,
-  Eye, Trash2, Edit3, X, FileText, Plus, ChevronDown, AlertCircle
+  Eye, Trash2, Edit3, X, FileText, Plus, ChevronDown, AlertCircle,
+  Loader2
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid
 } from "recharts";
+import { apiFetch } from "@/services/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -161,18 +163,28 @@ function JobModal({
 
   return (
     <div className="fixed inset-0 bg-slate-900/40 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-[#1A1D2D]/30 shrink-0">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="job-modal-title"
+        className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800 w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh]"
+      >
+        <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-[#1A1D2D]/30 shrink-0">
+          <h3 id="job-modal-title" className="text-lg font-bold text-slate-900 dark:text-white">
             {job?.id ? "Editar Vaga" : "Criar Nova Vaga"}
           </h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition">
-            <X className="w-5 h-5" />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="inline-flex items-center justify-center w-11 h-11 -mr-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white transition"
+          >
+            <X className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
-        <div className="p-8 space-y-6 overflow-y-auto">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="p-4 sm:p-6 md:p-8 space-y-6 overflow-y-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <FieldLabel>Título da Vaga *</FieldLabel>
               <input className={inputCls()} value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="ex: Frontend Developer" />
@@ -185,7 +197,7 @@ function JobModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <FieldLabel>Localização *</FieldLabel>
               <input className={inputCls()} value={form.location} onChange={(e) => set("location", e.target.value)} placeholder="ex: São Paulo, SP" />
@@ -204,7 +216,7 @@ function JobModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <FieldLabel>Tipo de Contrato</FieldLabel>
               <div className="relative">
@@ -229,12 +241,15 @@ function JobModal({
 
           <div className="space-y-2">
             <FieldLabel>Status da Vaga</FieldLabel>
-            <div className="flex gap-3">
-              {(["Aberta", "Pausada", "Encerrada"] as JobStatus[]).map((s) => (  // ✅ CORRIGIDO
+            <div className="flex flex-wrap gap-2 sm:gap-3" role="radiogroup" aria-label="Status da vaga">
+              {(["Aberta", "Pausada", "Encerrada"] as JobStatus[]).map((s) => (
                 <button
                   key={s}
+                  type="button"
+                  role="radio"
+                  aria-checked={form.status === s}
                   onClick={() => set("status", s)}
-                  className={`flex-1 py-3 rounded-xl text-sm font-bold border transition ${
+                  className={`flex-1 min-w-[6rem] min-h-[44px] py-3 px-3 rounded-xl text-sm font-bold border transition ${
                     form.status === s
                       ? "bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20"
                       : "border-slate-200 dark:border-slate-800 text-slate-400 hover:border-slate-300"
@@ -258,9 +273,19 @@ function JobModal({
           </div>
         </div>
 
-        <div className="p-6 bg-slate-50 dark:bg-[#1A1D2D]/30 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
-          <button onClick={onClose} className="text-sm font-bold text-slate-500 hover:text-slate-700 dark:hover:text-white px-5 transition">Cancelar</button>
-          <button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl text-sm font-black transition shadow-lg shadow-indigo-500/20">
+        <div className="p-4 sm:p-6 bg-slate-50 dark:bg-[#1A1D2D]/30 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-sm font-bold text-slate-500 hover:text-slate-700 dark:hover:text-white px-5 py-3 min-h-[44px] transition rounded-xl"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 sm:px-8 py-3 min-h-[44px] rounded-xl text-sm font-black transition shadow-lg shadow-indigo-500/20"
+          >
             {job?.id ? "Salvar Alterações" : "Publicar Vaga"}
           </button>
         </div>
@@ -302,13 +327,28 @@ export default function RecruiterDashboard() {
   const [editingJob, setEditingJob] = useState<Job | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [approvingCandidate, setApprovingCandidate] = useState(false);
+  const [approveError, setApproveError] = useState<string | null>(null);
   const itemsPerPage = 5;
+
+  // Trava o scroll do <body> enquanto qualquer modal estiver aberto, para
+  // evitar que o fundo continue rolável quando o usuário scrolla dentro do
+  // modal (sintoma típico em desktop e mobile).
+  useEffect(() => {
+    const anyModalOpen = !!selectedCandidate || openJobModal || !!deleteJob;
+    if (!anyModalOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [selectedCandidate, openJobModal, deleteJob]);
 
   useEffect(() => {
     const recrutadorId = localStorage.getItem("usuario_id");
     if (!recrutadorId) return;
 
-    fetch(`${API_URL}/recrutador/minhas-vagas/${recrutadorId}`)
+    apiFetch(`${API_URL}/recrutador/minhas-vagas/${recrutadorId}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.vagas) {
@@ -333,7 +373,7 @@ export default function RecruiterDashboard() {
       })
       .catch((err) => console.error("Erro ao carregar vagas:", err));
 
-    fetch(`${API_URL}/recrutador/dashboard/${recrutadorId}`)
+    apiFetch(`${API_URL}/recrutador/dashboard/${recrutadorId}`)
       .then((r) => r.json())
       .then((data) => {
         setDashboardData(data);
@@ -383,7 +423,7 @@ export default function RecruiterDashboard() {
 
     try {
       if (editingJob) {
-        const res = await fetch(`${API_URL}/recrutador/vagas/${editingJob.id}`, {
+        const res = await apiFetch(`${API_URL}/recrutador/vagas/${editingJob.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -400,7 +440,7 @@ export default function RecruiterDashboard() {
         });
         if (res.ok) setJobs(jobs.map((j) => (j.id === editingJob.id ? { ...j, ...data } : j)));
       } else {
-        const res = await fetch(`${API_URL}/recrutador/vagas`, {
+        const res = await apiFetch(`${API_URL}/recrutador/vagas`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -444,7 +484,7 @@ export default function RecruiterDashboard() {
     const recrutadorId = localStorage.getItem("usuario_id");
     if (!recrutadorId) return;
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `${API_URL}/recrutador/vagas/${deleteJob.id}?recrutador_id=${recrutadorId}`,
         { method: "DELETE" }
       );
@@ -453,6 +493,52 @@ export default function RecruiterDashboard() {
       console.error("Erro ao excluir vaga:", err);
     }
     setDeleteJob(null);
+  };
+
+  // Aprova um candidato — atualiza o status da candidatura para APROVADO
+  const handleApproveCandidate = async () => {
+    if (!selectedCandidate) return;
+    setApproveError(null);
+    setApprovingCandidate(true);
+    try {
+      const res = await apiFetch(
+        `${API_URL}/recrutador/candidaturas/${selectedCandidate.id}/status`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "CONTRATADO" }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "Não foi possível aprovar o candidato.");
+      }
+
+      // Atualiza estado local
+      setCandidates((prev) =>
+        prev.map((c) =>
+          c.id === selectedCandidate.id ? { ...c, status: "APROVADO" } : c
+        )
+      );
+      // Reflete na contagem do dashboard (sem refetch)
+      setDashboardData((d: any) =>
+        d
+          ? {
+              ...d,
+              candidatos_por_etapa: {
+                ...(d.candidatos_por_etapa ?? {}),
+                APROVADO: ((d.candidatos_por_etapa?.APROVADO ?? 0) as number) + 1,
+              },
+            }
+          : d
+      );
+      setSelectedCandidate(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao aprovar candidato.";
+      setApproveError(msg);
+    } finally {
+      setApprovingCandidate(false);
+    }
   };
 
   const pipelineData = dashboardData?.candidatos_por_etapa
@@ -465,10 +551,10 @@ export default function RecruiterDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-slate-200 antialiased transition-colors">
-      <main className="max-w-7xl mx-auto px-6 py-12">
-        <header className="mb-12">
-          <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Dashboard do Recrutador</h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">Resumo geral das suas operações de recrutamento.</p>
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-12">
+        <header className="mb-8 sm:mb-12">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">Dashboard do Recrutador</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 text-base sm:text-lg">Resumo geral das suas operações de recrutamento.</p>
         </header>
 
         {/* Stat Cards */}
@@ -509,15 +595,20 @@ export default function RecruiterDashboard() {
         </div>
 
         {/* Vagas */}
-        <section className="mb-16">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Vagas Ativas</h2>
-            <button onClick={() => handleOpenJobModal()} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-lg shadow-indigo-500/20">
-              <Plus className="w-4 h-4" /> Nova Vaga
+        <section className="mb-12 sm:mb-16">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 sm:mb-8">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Vagas Ativas</h2>
+            <button
+              type="button"
+              onClick={() => handleOpenJobModal()}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 min-h-[44px] rounded-xl text-sm font-bold transition inline-flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 self-start sm:self-auto"
+            >
+              <Plus className="w-4 h-4" aria-hidden="true" /> Nova Vaga
             </button>
           </div>
           <div className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden shadow-sm">
-            <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm min-w-[640px]">
               <thead className="bg-slate-50 dark:bg-[#1A1D2D]/30 text-slate-500 border-b border-slate-200 dark:border-slate-800/50">
                 <tr>
                   <th className="p-5 font-semibold uppercase text-[10px] tracking-widest">Cargo</th>
@@ -527,21 +618,48 @@ export default function RecruiterDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-                {jobs.map((job) => (
-                  <tr key={job.id} className="hover:bg-slate-50 dark:hover:bg-indigo-500/5 transition group">
-                    <td className="p-5 font-bold text-slate-900 dark:text-white text-base group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{job.title}</td>
-                    <td className="p-5 text-slate-500 dark:text-slate-400">{job.location} • {job.type}</td>
-                    <td className="p-5 text-center">
-                      <Badge variant={job.status === "Aberta" ? "success" : job.status === "Pausada" ? "warning" : "neutral"}>{job.status}</Badge>
-                    </td>
-                    <td className="p-5 text-right space-x-2">
-                      <button onClick={() => handleOpenJobModal(job)} className="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-white transition"><Edit3 className="w-4 h-4" /></button>
-                      <button onClick={() => setDeleteJob(job)} className="p-2.5 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg text-slate-400 hover:text-rose-500 transition"><Trash2 className="w-4 h-4" /></button>
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+                  const vagasAtivas = jobs.filter((job) => job.status === "Aberta");
+                  if (vagasAtivas.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                          Nenhuma vaga ativa no momento.
+                        </td>
+                      </tr>
+                    );
+                  }
+                  return vagasAtivas.map((job) => (
+                    <tr key={job.id} className="hover:bg-slate-50 dark:hover:bg-indigo-500/5 transition group">
+                      <td className="p-5 font-bold text-slate-900 dark:text-white text-base group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{job.title}</td>
+                      <td className="p-5 text-slate-500 dark:text-slate-400">{job.location} • {job.type}</td>
+                      <td className="p-5 text-center">
+                        <Badge variant="success">{job.status}</Badge>
+                      </td>
+                      <td className="p-5 text-right space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenJobModal(job)}
+                          aria-label={`Editar vaga ${job.title}`}
+                          className="inline-flex items-center justify-center w-11 h-11 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-white transition"
+                        >
+                          <Edit3 className="w-4 h-4" aria-hidden="true" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteJob(job)}
+                          aria-label={`Excluir vaga ${job.title}`}
+                          className="inline-flex items-center justify-center w-11 h-11 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg text-slate-400 hover:text-rose-500 transition"
+                        >
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
+                        </button>
+                      </td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
+            </div>
           </div>
         </section>
 
@@ -572,7 +690,8 @@ export default function RecruiterDashboard() {
           </div>
 
           <div className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-2xl overflow-hidden shadow-sm">
-            <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm min-w-[640px]">
               <thead className="bg-slate-50 dark:bg-[#1A1D2D]/30 text-slate-500 border-b border-slate-200 dark:border-slate-800/50">
                 <tr>
                   <th className="p-5 font-semibold uppercase text-[10px] tracking-widest">Candidato</th>
@@ -601,12 +720,29 @@ export default function RecruiterDashboard() {
                 ))}
               </tbody>
             </table>
+            </div>
 
-            <div className="p-5 border-t border-slate-100 dark:border-slate-800/50 flex items-center justify-between bg-slate-50 dark:bg-[#1A1D2D]/10">
+            <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50 dark:bg-[#1A1D2D]/10">
               <span className="text-xs text-slate-500 font-medium">Mostrando {paginatedCandidates.length} de {filteredCandidates.length} candidatos</span>
-              <div className="flex gap-2">
-                <button disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)} className="p-2 border border-slate-200 dark:border-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 transition"><ChevronLeft className="w-4 h-4" /></button>
-                <button disabled={currentPage === totalPages} onClick={() => setCurrentPage((p) => p + 1)} className="p-2 border border-slate-200 dark:border-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 transition"><ChevronRight className="w-4 h-4" /></button>
+              <div className="flex gap-2 self-end sm:self-auto">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                  aria-label="Página anterior"
+                  className="inline-flex items-center justify-center w-11 h-11 border border-slate-200 dark:border-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  aria-label="Próxima página"
+                  className="inline-flex items-center justify-center w-11 h-11 border border-slate-200 dark:border-slate-800 rounded-lg disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  <ChevronRight className="w-4 h-4" aria-hidden="true" />
+                </button>
               </div>
             </div>
           </div>
@@ -617,20 +753,36 @@ export default function RecruiterDashboard() {
       {deleteJob && <DeleteModal job={deleteJob} onClose={() => setDeleteJob(null)} onConfirm={handleDeleteJob} />}
 
       {selectedCandidate && (
-        <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden">
-            <div className="h-32 bg-gradient-to-br from-indigo-600 to-purple-700 p-8 flex justify-end items-start">
-              <button onClick={() => setSelectedCandidate(null)} className="bg-black/20 hover:bg-black/40 p-2 rounded-full text-white transition"><X className="w-6 h-6" /></button>
+        <div
+          className="fixed inset-0 bg-slate-900/60 dark:bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => { setSelectedCandidate(null); setApproveError(null); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="candidate-detail-title"
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800 w-full max-w-xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[95vh] sm:max-h-[90vh] flex flex-col"
+          >
+            <div className="h-20 sm:h-24 bg-gradient-to-br from-indigo-600 to-purple-700 p-4 sm:p-6 flex justify-end items-start shrink-0">
+              <button
+                type="button"
+                onClick={() => { setSelectedCandidate(null); setApproveError(null); }}
+                aria-label="Fechar detalhes do candidato"
+                className="inline-flex items-center justify-center w-11 h-11 bg-black/20 hover:bg-black/40 rounded-full text-white transition"
+              >
+                <X className="w-6 h-6" aria-hidden="true" />
+              </button>
             </div>
-            <div className="px-10 pb-10">
-              <div className="relative -top-12 flex items-end gap-6">
-                <div className="w-28 h-28 rounded-3xl bg-slate-100 dark:bg-[#1A1D2D] border-4 border-white dark:border-[#0B0E14] flex items-center justify-center text-4xl shadow-2xl">👤</div>
-                <div className="pb-3">
-                  <h3 className="text-3xl font-black text-slate-900 dark:text-white">{selectedCandidate.name}</h3>
-                  <p className="text-indigo-600 dark:text-indigo-400 font-semibold">{selectedCandidate.job}</p>
+            <div className="px-4 sm:px-10 pb-6 sm:pb-10 pt-6 sm:pt-8 overflow-y-auto flex-1">
+              <div className="mb-6 sm:mb-8 flex items-center gap-4 sm:gap-5">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-slate-100 dark:bg-[#1A1D2D] border border-slate-200 dark:border-slate-800 flex items-center justify-center text-2xl sm:text-3xl shadow-sm shrink-0">👤</div>
+                <div className="min-w-0 flex-1">
+                  <h3 id="candidate-detail-title" className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white break-words leading-tight">{selectedCandidate.name}</h3>
+                  <p className="text-indigo-600 dark:text-indigo-400 font-semibold text-sm sm:text-base mt-1">{selectedCandidate.job}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-6 mb-10">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8 sm:mb-10">
                 <div className="bg-slate-50 dark:bg-[#1A1D2D]/30 p-5 rounded-2xl border border-slate-200 dark:border-slate-800/50 text-sm">
                   <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">E-mail de Contato</p>
                   <p className="text-slate-900 dark:text-white font-medium">{selectedCandidate.email}</p>
@@ -641,11 +793,52 @@ export default function RecruiterDashboard() {
                 </div>
               </div>
               <div className="flex flex-col gap-4">
-                <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-500/20">
-                  <CheckCircle className="w-5 h-5" /> Aprovar Candidato
-                </button>
-                <button onClick={() => window.location.href = `mailto:${selectedCandidate.email}`} className="w-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition hover:bg-slate-200 dark:hover:bg-slate-700">
-                  <Mail className="w-5 h-5" /> Enviar Mensagem
+                {approveError && (
+                  <div
+                    role="alert"
+                    className="flex items-center gap-2 text-rose-600 dark:text-rose-400 text-sm bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 rounded-xl p-3"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    <span>{approveError}</span>
+                  </div>
+                )}
+
+                {selectedCandidate.status === "APROVADO" ? (
+                  <div
+                    role="status"
+                    className="w-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-bold py-4 rounded-2xl flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle className="w-5 h-5" aria-hidden="true" />
+                    Candidato já aprovado
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleApproveCandidate}
+                    disabled={approvingCandidate}
+                    aria-busy={approvingCandidate}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-4 min-h-[44px] rounded-2xl flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-500/20"
+                  >
+                    {approvingCandidate ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+                        Aprovando…
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-5 h-5" aria-hidden="true" />
+                        Aprovar Candidato
+                      </>
+                    )}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => window.location.href = `mailto:${selectedCandidate.email}`}
+                  className="w-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-white font-bold py-4 min-h-[44px] rounded-2xl flex items-center justify-center gap-2 transition hover:bg-slate-200 dark:hover:bg-slate-700"
+                >
+                  <Mail className="w-5 h-5" aria-hidden="true" /> Enviar Mensagem
                 </button>
               </div>
             </div>

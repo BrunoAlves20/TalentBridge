@@ -15,6 +15,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { persistSession } from "@/services/auth";
 
 function SocialCallbackInner() {
   const router       = useRouter();
@@ -47,8 +48,9 @@ function SocialCallbackInner() {
     localStorage.removeItem("@TalentBridge:OnboardingData");
     sessionStorage.removeItem("@TalentBridge:OnboardingData");
     localStorage.setItem("@TalentBridge:user", JSON.stringify(userData));
-    localStorage.setItem("@TalentBridge:token", token);
     localStorage.setItem("usuario_id", userId);
+    // Grava o JWT no localStorage e cookies (para o middleware proteger rotas).
+    persistSession(token, role);
 
     // Redireciona conforme o perfil
     if (role === "RECRUTADOR") {

@@ -284,13 +284,21 @@ JOIN usuarios r ON r.id = v.recrutador_id AND r.email='bruno.rh@finovapay.com'
 JOIN usuarios u ON u.email='larissa.oliveira@exemplo.com'
 WHERE v.titulo='Product Designer (UX/UI)';
 
--- Juliana → Marketing Digital (HealthLab)
+-- Juliana → Marketing Digital (HealthLab) - status CONTRATADO (etapa final positiva)
 INSERT IGNORE INTO candidaturas (vaga_id, candidato_id, status)
-SELECT v.id, u.id, 'APROVADO'
+SELECT v.id, u.id, 'CONTRATADO'
 FROM vagas v
 JOIN usuarios r ON r.id = v.recrutador_id AND r.email='camila.talent@healthlab.com'
 JOIN usuarios u ON u.email='juliana.ribeiro@exemplo.com'
 WHERE v.titulo='Analista de Marketing Digital';
+
+-- Thiago → Front-end Sênior (Tech Solutions) - status REJEITADO (cobre o estado descartado)
+INSERT IGNORE INTO candidaturas (vaga_id, candidato_id, status)
+SELECT v.id, u.id, 'REJEITADO'
+FROM vagas v
+JOIN usuarios r ON r.id = v.recrutador_id AND r.email='ana.recrutadora@techsolutions.com'
+JOIN usuarios u ON u.email='thiago.martins@exemplo.com'
+WHERE v.titulo='Desenvolvedor(a) Front-end Sênior';
 
 
 -- ── 10. VAGAS SALVAS DE EXEMPLO ──────────────────────────────────────────────

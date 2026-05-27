@@ -7,6 +7,7 @@ import {
   MapPin, Briefcase, ArrowRight, RefreshCw, AlertCircle,
   ChevronDown
 } from "lucide-react";
+import { apiFetch } from "@/services/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -18,7 +19,9 @@ const STATUS_TO_STAGE: Record<string, Stage> = {
   ENVIADO:    "Triagem",
   EM_ANALISE: "Teste Técnico",
   ENTREVISTA: "Entrevista",
-  APROVADO:   "Contratado",
+  PROPOSTA:   "Proposta",
+  CONTRATADO: "Contratado",
+  APROVADO:   "Contratado", // legado — bancos antigos podem ter APROVADO em vez de CONTRATADO
   REJEITADO:  "Triagem",
 };
 
@@ -26,8 +29,8 @@ const STAGE_TO_STATUS: Record<Stage, string> = {
   "Triagem":       "ENVIADO",
   "Teste Técnico": "EM_ANALISE",
   "Entrevista":    "ENTREVISTA",
-  "Proposta":      "APROVADO",
-  "Contratado":    "APROVADO",
+  "Proposta":      "PROPOSTA",
+  "Contratado":    "CONTRATADO",
 };
 
 interface PipelineCandidate {
@@ -353,10 +356,14 @@ function CandidateDetail({
 
 // ─── Page principal ───────────────────────────────────────────────────────────
 
+// Valor sentinela para representar "todas as vagas" no seletor
+const ALL_VAGAS = "ALL" as const;
+type VagaSelection = number | typeof ALL_VAGAS | null;
+
 export default function PipelinePage() {
   const [candidates, setCandidates] = useState<PipelineCandidate[]>([]);
   const [vagas, setVagas] = useState<Vaga[]>([]);
-  const [selectedVagaId, setSelectedVagaId] = useState<number | null>(null);
+  const [selectedVagaId, setSelectedVagaId] = useState<VagaSelection>(ALL_VAGAS);
   const [selectedCandidate, setSelectedCandidate] = useState<PipelineCandidate | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -366,58 +373,117 @@ export default function PipelinePage() {
 
   // ── Carrega vagas do recrutador ──────────────────────────────────────────
   useEffect(() => {
-    if (!recrutadorId) return;
-    fetch(`${API_URL}/recrutador/minhas-vagas/${recrutadorId}`)
-      .then((r) => r.json())
+    if (!recrutadorId) {
+      setError("Sessão expirada. Faça login novamente para ver o pipeline.");
+      return;
+    }
+    setError(null);
+    apiFetch(`${API_URL}/recrutador/minhas-vagas/${recrutadorId}`)
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          throw new Error(body.detail || `Erro ${r.status} ao carregar vagas.`);
+        }
+        return r.json();
+      })
       .then((data) => {
         const lista: Vaga[] = (data.vagas ?? []).map((v: { id: number; titulo: string }) => ({
           id: v.id,
           titulo: v.titulo,
         }));
         setVagas(lista);
-        if (lista.length > 0) setSelectedVagaId(lista[0].id);
+        if (lista.length === 0) {
+          setError("Você ainda não tem vagas cadastradas. Crie uma vaga para ver candidatos no pipeline.");
+        }
+        // Mantém "Todas as vagas" como seleção padrão quando há vagas disponíveis.
       })
-      .catch(() => setError("Não foi possível carregar as vagas."));
+      .catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : "Não foi possível carregar as vagas.";
+        setError(msg);
+        console.error("[Pipeline] Erro ao carregar vagas:", e);
+      });
   }, [recrutadorId]);
 
-  // ── Carrega candidatos da vaga selecionada ───────────────────────────────
-  const fetchCandidatos = useCallback(() => {
-    if (!selectedVagaId) return;
+  // ── Carrega candidatos da vaga selecionada (ou de todas) ─────────────────
+  const fetchCandidatos = useCallback(async () => {
+    if (selectedVagaId === null) return;
+
+    // Quando "Todas as vagas" está selecionado, não há vagas pra buscar.
+    if (selectedVagaId === ALL_VAGAS && vagas.length === 0) {
+      setCandidates([]);
+      return;
+    }
+
     setLoading(true);
     setError(null);
-    fetch(`${API_URL}/recrutador/pipeline/${selectedVagaId}/candidatos`)
-      .then((r) => r.json())
-      .then((data) => {
-        const mapped: PipelineCandidate[] = (data.candidatos ?? []).map(
-          (c: {
-            candidatura_id: number;
-            usuario_id: number;
-            nome: string;
-            cidade: string;
-            estado: string;
-            email: string;
-            status_candidatura: string;
-            data_candidatura: string;
-            hard_skills: string[];
-            soft_skills: string[];
-          }) => ({
-            id: c.candidatura_id,
-            usuarioId: c.usuario_id,
-            name: c.nome,
-            role: "Candidato",
-            location: [c.cidade, c.estado].filter(Boolean).join(", ") || "—",
-            matchScore: 0,
-            stage: STATUS_TO_STAGE[c.status_candidatura] ?? "Triagem",
-            appliedJob: vagas.find((v) => v.id === selectedVagaId)?.titulo ?? "",
-            email: c.email,
-            daysInStage: calcDaysInStage(c.data_candidatura),
-            stacks: [...(c.hard_skills ?? []), ...(c.soft_skills ?? [])],
-          })
+
+    type RawCandidato = {
+      candidatura_id: number;
+      usuario_id: number;
+      nome: string;
+      cidade: string;
+      estado: string;
+      email: string;
+      status_candidatura: string;
+      data_candidatura: string;
+      hard_skills: string[];
+      soft_skills: string[];
+    };
+
+    const fetchVaga = async (vagaId: number, vagaTitulo: string): Promise<PipelineCandidate[]> => {
+      const r = await apiFetch(`${API_URL}/recrutador/pipeline/${vagaId}/candidatos`);
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body.detail || `Erro ${r.status} ao carregar candidatos.`);
+      }
+      const data = await r.json();
+      return (data.candidatos ?? []).map((c: RawCandidato) => ({
+        id: c.candidatura_id,
+        usuarioId: c.usuario_id,
+        name: c.nome,
+        role: "Candidato",
+        location: [c.cidade, c.estado].filter(Boolean).join(", ") || "—",
+        matchScore: 0,
+        stage: STATUS_TO_STAGE[c.status_candidatura] ?? "Triagem",
+        appliedJob: vagaTitulo,
+        email: c.email,
+        daysInStage: calcDaysInStage(c.data_candidatura),
+        stacks: [...(c.hard_skills ?? []), ...(c.soft_skills ?? [])],
+      }));
+    };
+
+    try {
+      let mapped: PipelineCandidate[] = [];
+
+      if (selectedVagaId === ALL_VAGAS) {
+        const results = await Promise.all(
+          vagas.map((v) => fetchVaga(v.id, v.titulo).catch((e) => {
+            console.error(`[Pipeline] Erro ao carregar vaga ${v.id}:`, e);
+            return [] as PipelineCandidate[];
+          }))
         );
-        setCandidates(mapped);
-      })
-      .catch(() => setError("Erro ao carregar candidatos."))
-      .finally(() => setLoading(false));
+        mapped = results.flat();
+
+        // Deduplica candidatos que aparecem em mais de uma vaga (mesma candidatura_id).
+        const seen = new Set<number>();
+        mapped = mapped.filter((c) => {
+          if (seen.has(c.id)) return false;
+          seen.add(c.id);
+          return true;
+        });
+      } else {
+        const titulo = vagas.find((v) => v.id === selectedVagaId)?.titulo ?? "";
+        mapped = await fetchVaga(selectedVagaId, titulo);
+      }
+
+      setCandidates(mapped);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erro ao carregar candidatos.";
+      setError(msg);
+      console.error("[Pipeline] Erro ao carregar candidatos:", e);
+    } finally {
+      setLoading(false);
+    }
   }, [selectedVagaId, vagas]);
 
   useEffect(() => { fetchCandidatos(); }, [fetchCandidatos]);
@@ -434,7 +500,7 @@ export default function PipelinePage() {
     const novoStatus = STAGE_TO_STATUS[nextStage];
 
     try {
-      const res = await fetch(`${API_URL}/recrutador/candidaturas/${id}/status`, {
+      const res = await apiFetch(`${API_URL}/recrutador/candidaturas/${id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: novoStatus }),
@@ -455,7 +521,7 @@ export default function PipelinePage() {
   // ── Descartar candidato ──────────────────────────────────────────────────
   const discard = async (id: number) => {
     try {
-      const res = await fetch(`${API_URL}/recrutador/candidaturas/${id}/status`, {
+      const res = await apiFetch(`${API_URL}/recrutador/candidaturas/${id}/status`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "REJEITADO" }),
@@ -507,10 +573,26 @@ export default function PipelinePage() {
         <div className="flex items-center gap-3 mb-8">
           <div className="relative">
             <select
-              value={selectedVagaId ?? ""}
-              onChange={(e) => setSelectedVagaId(Number(e.target.value))}
+              value={
+                selectedVagaId === ALL_VAGAS
+                  ? ALL_VAGAS
+                  : selectedVagaId === null
+                  ? ""
+                  : String(selectedVagaId)
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === ALL_VAGAS) {
+                  setSelectedVagaId(ALL_VAGAS);
+                } else if (val === "") {
+                  setSelectedVagaId(null);
+                } else {
+                  setSelectedVagaId(Number(val));
+                }
+              }}
               className="appearance-none bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-xl py-2.5 pl-4 pr-10 text-sm font-medium outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white transition"
             >
+              <option value={ALL_VAGAS}>Todas as vagas</option>
               {vagas.length === 0 && <option value="">Nenhuma vaga encontrada</option>}
               {vagas.map((v, idx) => (
                 <option key={`vaga-${v.id}-${idx}`} value={v.id}>{v.titulo}</option>

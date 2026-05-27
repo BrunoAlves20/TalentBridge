@@ -8,6 +8,7 @@ import {
   CheckCircle2, AlertCircle, Loader2, Eye, EyeOff,
   Shield, Bell, Palette, ChevronRight, X, Save
 } from "lucide-react";
+import { apiFetch } from "@/services/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -231,7 +232,7 @@ export default function SettingsPage() {
   const carregarPreferencias = useCallback(async (id: string) => {
     setLoadingPrefs(true);
     try {
-      const res = await fetch(`${API_URL}/usuarios/${id}/preferencias`);
+      const res = await apiFetch(`${API_URL}/usuarios/${id}/preferencias`);
       const data = await res.json();
       if (res.ok && data.preferencias) {
         setPrefs({ ...PREFS_PADRAO, ...data.preferencias });
@@ -265,7 +266,7 @@ export default function SettingsPage() {
 
     setIsSavingPassword(true);
     try {
-      const res = await fetch(`${API_URL}/usuarios/senha`, {
+      const res = await apiFetch(`${API_URL}/usuarios/senha`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -298,7 +299,7 @@ export default function SettingsPage() {
     if (!usuarioId) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`${API_URL}/usuarios/${usuarioId}`, {
+      const res = await apiFetch(`${API_URL}/usuarios/${usuarioId}`, {
         method: "DELETE",
       });
 
@@ -324,7 +325,7 @@ export default function SettingsPage() {
     if (!usuarioId) return;
     setSavingPrefs(true);
     try {
-      const res = await fetch(`${API_URL}/usuarios/${usuarioId}/preferencias`, {
+      const res = await apiFetch(`${API_URL}/usuarios/${usuarioId}/preferencias`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(prefs),
@@ -349,7 +350,7 @@ export default function SettingsPage() {
 
     // Persiste imediatamente (sem aguardar o botão "Salvar")
     try {
-      await fetch(`${API_URL}/usuarios/${usuarioId}/preferencias`, {
+      await apiFetch(`${API_URL}/usuarios/${usuarioId}/preferencias`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [key]: value }),

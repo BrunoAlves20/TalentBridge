@@ -107,16 +107,30 @@ CREATE TABLE IF NOT EXISTS vagas (
 );
 
 -- 8. Tabela de Candidaturas
+-- Status do pipeline:
+--   ENVIADO    → "Triagem" (default ao se candidatar)
+--   EM_ANALISE → "Teste Técnico"
+--   ENTREVISTA → "Entrevista"
+--   PROPOSTA   → "Proposta"
+--   CONTRATADO → "Contratado"
+--   APROVADO   → legado (mantido para compatibilidade — equivale a CONTRATADO)
+--   REJEITADO  → candidatura descartada
 CREATE TABLE IF NOT EXISTS candidaturas (
     id INT AUTO_INCREMENT PRIMARY KEY,
     vaga_id INT NOT NULL,
     candidato_id INT NOT NULL,
-    status ENUM('ENVIADO', 'EM_ANALISE', 'ENTREVISTA', 'APROVADO', 'REJEITADO') NOT NULL DEFAULT 'ENVIADO',
+    status ENUM('ENVIADO', 'EM_ANALISE', 'ENTREVISTA', 'PROPOSTA', 'CONTRATADO', 'APROVADO', 'REJEITADO') NOT NULL DEFAULT 'ENVIADO',
     data_candidatura TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vaga_id) REFERENCES vagas(id) ON DELETE CASCADE,
     FOREIGN KEY (candidato_id) REFERENCES usuarios(id) ON DELETE CASCADE,
     UNIQUE KEY unica_candidatura (vaga_id, candidato_id)
 );
+
+-- Migração defensiva: bancos antigos podem ter o enum sem PROPOSTA/CONTRATADO.
+-- ALTER TABLE é idempotente nesse caso (MySQL aceita reaplicar o mesmo enum).
+ALTER TABLE candidaturas
+    MODIFY COLUMN status ENUM('ENVIADO', 'EM_ANALISE', 'ENTREVISTA', 'PROPOSTA', 'CONTRATADO', 'APROVADO', 'REJEITADO')
+    NOT NULL DEFAULT 'ENVIADO';
 
 -- 9. Tabela de Vagas Salvas (Migração Parte 2)
 CREATE TABLE IF NOT EXISTS vagas_salvas (
@@ -194,3 +208,18 @@ PREPARE stmt5 FROM @sql5; EXECUTE stmt5; DEALLOCATE PREPARE stmt5;
 SET @idx6 = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'usuarios' AND INDEX_NAME = 'uq_social');
 SET @sql6 = IF(@idx6 = 0, 'CREATE UNIQUE INDEX uq_social ON usuarios (social_id, social_provider)', 'SELECT "Índice uq_social já existe"');
 PREPARE stmt6 FROM @sql6; EXECUTE stmt6; DEALLOCATE PREPARE stmt6;
+
+-- Índice em vagas(recrutador_id) — alimenta GET /recrutador/minhas-vagas, dashboard, pipeline
+SET @idx7 = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vagas' AND INDEX_NAME = 'idx_vagas_recrutador');
+SET @sql7 = IF(@idx7 = 0, 'CREATE INDEX idx_vagas_recrutador ON vagas (recrutador_id)', 'SELECT "Índice idx_vagas_recrutador já existe"');
+PREPARE stmt7 FROM @sql7; EXECUTE stmt7; DEALLOCATE PREPARE stmt7;
+
+-- Índice em vagas(status) — alimenta GET /vagas/abertas
+SET @idx8 = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vagas' AND INDEX_NAME = 'idx_vagas_status');
+SET @sql8 = IF(@idx8 = 0, 'CREATE INDEX idx_vagas_status ON vagas (status)', 'SELECT "Índice idx_vagas_status já existe"');
+PREPARE stmt8 FROM @sql8; EXECUTE stmt8; DEALLOCATE PREPARE stmt8;
+
+-- Índice em simulador_mensagens(sessao_id) — JOIN no carregamento da sessão
+SET @idx9 = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'simulador_mensagens' AND INDEX_NAME = 'idx_sim_msg_sessao');
+SET @sql9 = IF(@idx9 = 0, 'CREATE INDEX idx_sim_msg_sessao ON simulador_mensagens (sessao_id)', 'SELECT "Índice idx_sim_msg_sessao já existe"');
+PREPARE stmt9 FROM @sql9; EXECUTE stmt9; DEALLOCATE PREPARE stmt9;

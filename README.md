@@ -80,7 +80,7 @@ cp frontend/.env.example frontend/.env.local
 ```env
 # Banco — o docker-compose sobrescreve DB_HOST=db automaticamente
 DB_USER=root
-DB_PASSWORD=rootpassword
+DB_PASSWORD=1234
 DB_NAME=talentbridge
 DB_PORT=3306
 
@@ -127,7 +127,7 @@ As imagens já estão prontas, então sobe muito mais rápido.
 | **Frontend** | http://localhost:3000 |
 | **Backend** | http://localhost:8000 |
 | **Documentação da API** | http://localhost:8000/docs |
-| **MySQL (no container)** | localhost:3307 (root / `rootpassword` por padrão) |
+| **MySQL (no container)** | localhost:3307 (root / `1234` por padrão) |
 
 > ⚠ O MySQL do Docker é exposto na porta **3307** para não conflitar com um MySQL local na porta 3306, caso você já tenha um.
 
@@ -242,6 +242,11 @@ docker-compose logs -f
 | `LINKEDIN_CLIENT_ID` | Client ID do LinkedIn OAuth |
 | `LINKEDIN_CLIENT_SECRET` | Client Secret do LinkedIn OAuth |
 | `LINKEDIN_REDIRECT_URI` | URI de callback do LinkedIn OAuth |
+| `FRONTEND_URL` | URL pública do frontend, usada nos redirecionamentos OAuth |
+| `CORS_ORIGINS` | Lista de origens permitidas, separadas por vírgula |
+| `DEV_MODE` | `true` ativa OTP fixo `000000`, mock de Hunter/Gemini, social desativado |
+| `NEXT_PUBLIC_API_URL` | (frontend) URL do backend, inlinada no bundle Next em build time |
+| `NEXT_PUBLIC_DEV_MODE` | (frontend) `true` mostra banner "DEV" e pré-preenche OTP no modal |
 | `FRONTEND_URL` | URL do frontend (usada pelo backend no redirect OAuth) |
 | `DEV_MODE` | `true` = modo de desenvolvimento / `false` = produção real |
 

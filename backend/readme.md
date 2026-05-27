@@ -1,82 +1,32 @@
-# TalentBridge - Backend API
+# Backend — TalentBridge
 
-Este é o backend do projeto **TalentBridge**, desenvolvido em Python utilizando o framework **FastAPI**. A API é responsável por gerenciar a autenticação de usuários, perfis de candidatos, vagas e o motor de simulação de entrevistas com IA.
+A documentação principal está no **README na raiz do projeto**.
+Consulte: [`../README.md`](../README.md)
 
-## 🚀 Tecnologias Utilizadas
+## Estrutura desta pasta
 
-* **Linguagem:** Python 3.x
-* **Framework API:** FastAPI
-* **Servidor Web:** Uvicorn
-* **Banco de Dados:** MySQL (via `mysql-connector-python`)
-* **Segurança:** Bcrypt (para hash de senhas)
-* **Validação de Dados:** Pydantic
-* **Upload de Arquivos:** `python-multipart`
+- `main.py` — entrypoint do FastAPI, registra todos os routers e configura CORS.
+- `database.py` — conexão MySQL e `init_db()` (executa `Database/db.sql` + `seed.sql`).
+- `dependencies.py` — `get_current_user`, `require_candidato`, `require_recrutador` (auth via JWT Bearer).
+- `schemas.py` — modelos Pydantic compartilhados entre routers.
+- `routers/` — endpoints por domínio (`auth`, `auth_otp`, `auth_social`, `candidatos`, `recrutador`, `vagas`, `simulador`, `inteligencias`).
+- `services/` — integrações externas (Gemini, Hunter.io, SMTP, OAuth) e helpers de auth/file.
+- `tests/` — suíte pytest (rode com `pytest backend/tests/`).
 
-## 📁 Estrutura de Diretórios (Backend)
-
-A arquitetura do backend foi desenhada para separar responsabilidades de forma clara:
-
-```text
-backend/
-├── uploads/              # Diretório local temporário onde os currículos (PDFs) são salvos
-├── venv/                 # Ambiente virtual do Python (ignorado no git)
-├── .env                  # Variáveis de ambiente e credenciais do banco (ignorado no git)
-├── .gitignore            # Arquivos ignorados pelo controle de versão
-├── database.py           # Configuração e gerenciamento da conexão com o MySQL
-├── main.py               # Arquivo principal contendo a instância do FastAPI e as rotas (Endpoints)
-└── talentbridge_tabelas.sql # Script SQL oficial com a modelagem do banco de dados
-
-
-## 📡 Endpoints da API (Rotas Principais)
-POST /usuarios/cadastro: Registra novos Candidatos ou Recrutadores.
-
-POST /usuarios/login: Autentica o usuário e retorna seus dados base.
-
-GET /candidatos/perfil-pessoal/{id}: Retorna os dados pessoais do candidato para edição.
-
-PUT /candidatos/perfil-pessoal: Atualiza ou insere os dados pessoais (nome, telefone, localização).
-
-POST /candidatos/area: Recebe o formulário completo de currículo (experiências, formações, habilidades) e faz o upload do arquivo PDF.
-
-## 🛠️ Como Configurar e Executar o Projeto Localmente
-1. Preparando o Banco de Dados
-Abra o MySQL Workbench.
-
-Execute o script talentbridge_tabelas.sql para criar o schema talentbridge e todas as tabelas atualizadas com AUTO_INCREMENT.
-
-## Configurando o Ambiente Python
-Abra o terminal na pasta backend/ e execute:
-
-Ative o ambiente virtual
+## Quick start (apenas backend, sem Docker)
 
 ```bash
-  python -m venv venv
-```
-No windows
-```bash
-  venv\Scripts\activate
-```
-No Linux/Mac:
-```bash
-  source venv\Scripts\activate
+cd backend
+python -m venv venv
+source venv/bin/activate          # Linux/Mac
+# venv\Scripts\activate           # Windows PowerShell
+
+pip install -r requirements.txt
+
+# Configure backend/.env (copie de .env.example)
+# DB_HOST=localhost  (ou outro host MySQL acessível)
+
+uvicorn main:app --reload --port 8000
 ```
 
-# Instale as dependências essenciais
-```
-pip install fastapi uvicorn mysql-connector-python python-dotenv bcrypt pydantic "pydantic[email]" python-multipart
-```
-
-## Variáveis de Ambiente
-Crie um arquivo chamado .env na raiz da pasta backend/ com as suas credenciais de acesso ao MySQL, sigar o arquivo .env_example
-
-## Iniciando o Servidor
-Com o ambiente virtual ativado, inicie a API com o Uvicorn:
-```
-Bash
-uvicorn main:app --reload
-```
-A API estará rodando em http://127.0.0.1:8000.
-Você pode acessar a documentação interativa e testar as rotas acessando o Swagger UI gerado automaticamente em: http://127.0.0.1:8000/docs.
-
-Caso não entenda como Fucionar só Chamar que ajudo
-
+A documentação Swagger interativa fica em http://localhost:8000/docs.

@@ -23,6 +23,7 @@ import {
   Github, Linkedin, Globe, UploadCloud, FileCheck, AlertCircle, Download
 } from "lucide-react";
 import { EmailVerificationModal, type VerifySuccessPayload } from "@/components/auth/EmailVerificationModal";
+import { apiFetch } from "@/services/auth";
 
 const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -72,7 +73,7 @@ export default function CandidateProfilePage() {
       const usuarioId = localStorage.getItem("usuario_id");
       if (!usuarioId) { setFetchError("not_found"); setIsLoading(false); return; }
       try {
-        const response = await fetch(`${getApiUrl()}/candidatos/perfil-completo/${usuarioId}`);
+        const response = await apiFetch(`${getApiUrl()}/candidatos/perfil-completo/${usuarioId}`);
         if (response.ok) setPerfil(await response.json());
         else if (response.status === 404) setFetchError("not_found");
         else setFetchError("offline");
@@ -84,7 +85,7 @@ export default function CandidateProfilePage() {
       const usuarioId = localStorage.getItem("usuario_id");
       if (!usuarioId) return;
       try {
-        const response = await fetch(`${getApiUrl()}/candidatos/verificar-cv/${usuarioId}`);
+        const response = await apiFetch(`${getApiUrl()}/candidatos/verificar-cv/${usuarioId}`);
         if (response.ok) {
           const data = await response.json();
           setHasCvSaved(data.existe);
@@ -112,7 +113,7 @@ export default function CandidateProfilePage() {
     setIsSaving(true);
     const usuarioId = localStorage.getItem("usuario_id");
     try {
-      const r = await fetch(`${getApiUrl()}/candidatos/perfil-pessoal`, {
+      const r = await apiFetch(`${getApiUrl()}/candidatos/perfil-pessoal`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ usuario_id: Number(usuarioId), ...data }),
@@ -165,7 +166,7 @@ export default function CandidateProfilePage() {
     try {
       // Solicita o código OTP para o novo e-mail.
       // O backend verifica: duplicata no banco + Hunter.io.
-      const res = await fetch(`${getApiUrl()}/auth/send-code`, {
+      const res = await apiFetch(`${getApiUrl()}/auth/send-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -226,7 +227,7 @@ export default function CandidateProfilePage() {
         stacks:     stacksArray,
         softSkills: softSkillsArray,
       };
-      const r = await fetch(`${getApiUrl()}/candidatos/onboarding`, {
+      const r = await apiFetch(`${getApiUrl()}/candidatos/onboarding`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -260,7 +261,7 @@ export default function CandidateProfilePage() {
     try {
       await new Promise(r => setTimeout(r, 600));
       setCvUploadState('extracting');
-      const response = await fetch(`${getApiUrl()}/candidatos/extrair-cv`, { method: 'POST', body: formData });
+      const response = await apiFetch(`${getApiUrl()}/candidatos/extrair-cv`, { method: 'POST', body: formData });
       if (!response.ok) { const err = await response.json(); throw new Error(err.detail || 'Erro ao processar o currículo.'); }
 
       const data = await response.json();
@@ -273,7 +274,7 @@ export default function CandidateProfilePage() {
         stacks:     extracted.stacks     ?? perfil.stacks,
         softSkills: extracted.softSkills ?? perfil.softSkills,
       };
-      const saveRes = await fetch(`${getApiUrl()}/candidatos/onboarding`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const saveRes = await apiFetch(`${getApiUrl()}/candidatos/onboarding`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!saveRes.ok) throw new Error('Erro ao salvar os dados extraídos.');
       setPerfil(payload);
       setCvUploadState('done');
@@ -481,17 +482,36 @@ export default function CandidateProfilePage() {
         </div>
 
         {/* CARDS: SKILLS */}
+        {/*
+          ⚠ Tailwind JIT purga classes interpoladas em runtime (`bg-${color}-100`).
+          Em build de produção essas classes não existem no CSS gerado. Por isso
+          mantemos uma TABELA ESTÁTICA com todas as variantes que usamos.
+        */}
         <div className="grid md:grid-cols-2 gap-6">
           {[
-            { label: "Stacks",      data: stacks,      color: "purple", icon: <Wrench className="w-5 h-5" />,       pillCls: "bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20" },
-            { label: "Soft-Skills", data: softSkills,  color: "pink",   icon: <HeartHandshake className="w-5 h-5" />, pillCls: "bg-pink-50 text-pink-700 border-pink-100 dark:bg-pink-500/10 dark:text-pink-400 dark:border-pink-500/20" },
-          ].map(({ label, data, color, icon, pillCls }) => (
+            {
+              label: "Stacks",
+              data: stacks,
+              icon: <Wrench className="w-5 h-5" />,
+              iconCls: "bg-purple-100 text-purple-600",
+              buttonCls: "text-slate-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-500/10",
+              pillCls: "bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20",
+            },
+            {
+              label: "Soft-Skills",
+              data: softSkills,
+              icon: <HeartHandshake className="w-5 h-5" />,
+              iconCls: "bg-pink-100 text-pink-600",
+              buttonCls: "text-slate-400 hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-500/10",
+              pillCls: "bg-pink-50 text-pink-700 border-pink-100 dark:bg-pink-500/10 dark:text-pink-400 dark:border-pink-500/20",
+            },
+          ].map(({ label, data, icon, iconCls, buttonCls, pillCls }) => (
             <div key={label} className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-3xl p-8 shadow-sm relative group">
-              <button onClick={openModalSkills} className={`absolute top-6 right-6 p-2 text-slate-400 hover:text-${color}-600 hover:bg-${color}-50 dark:hover:bg-${color}-500/10 rounded-xl transition-colors`}>
+              <button onClick={openModalSkills} className={`absolute top-6 right-6 p-2 ${buttonCls} rounded-xl transition-colors`}>
                 <Edit3 className="w-4 h-4" />
               </button>
               <div className="flex items-center gap-3 mb-6">
-                <div className={`w-10 h-10 rounded-xl bg-${color}-100 text-${color}-600 flex items-center justify-center`}>{icon}</div>
+                <div className={`w-10 h-10 rounded-xl ${iconCls} flex items-center justify-center`}>{icon}</div>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white">{label}</h3>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -529,24 +549,33 @@ export default function CandidateProfilePage() {
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {[
-                      ["Nome Completo", "fullName", "text"],
-                      ["Telefone",      "phone",    "text"],
-                      ["Idade",         "age",      "text"],
-                      ["Cidade",        "city",     "text"],
-                      ["Estado (UF)",   "state",    "text"],
-                      ["CEP",           "zipCode",  "text"],
-                    ].map(([label, field, type]) => (
-                      <div key={field} className="space-y-1.5">
-                        <label className={labelCls}>{label}</label>
-                        <input type={type} value={formDataPersonal[field] ?? ""}
-                          onChange={(e) => setFormDataPersonal({ ...formDataPersonal, [field]: e.target.value })}
-                          className={inputCls} />
-                      </div>
-                    ))}
+                      ["Nome Completo", "fullName", "text",  "name"],
+                      ["Telefone",      "phone",    "tel",   "tel"],
+                      ["Idade",         "age",      "text",  "off"],
+                      ["Cidade",        "city",     "text",  "address-level2"],
+                      ["Estado (UF)",   "state",    "text",  "address-level1"],
+                      ["CEP",           "zipCode",  "text",  "postal-code"],
+                    ].map(([label, field, type, autoComp]) => {
+                      const inputId = `personal-${field}`;
+                      return (
+                        <div key={field} className="space-y-1.5">
+                          <label htmlFor={inputId} className={labelCls}>{label}</label>
+                          <input
+                            id={inputId}
+                            name={field}
+                            type={type}
+                            autoComplete={autoComp}
+                            value={formDataPersonal[field] ?? ""}
+                            onChange={(e) => setFormDataPersonal({ ...formDataPersonal, [field]: e.target.value })}
+                            className={inputCls}
+                          />
+                        </div>
+                      );
+                    })}
 
                     {/* FIX 3: campo E-mail com destaque visual quando alterado */}
                     <div className="space-y-1.5 col-span-full">
-                      <label className={labelCls}>
+                      <label htmlFor="personal-email" className={labelCls}>
                         E-mail
                         {formDataPersonal.email !== perfil.personal?.email && (
                           <span className="ml-2 text-amber-500 normal-case font-normal tracking-normal text-xs">
@@ -555,7 +584,13 @@ export default function CandidateProfilePage() {
                         )}
                       </label>
                       <input
+                        id="personal-email"
+                        name="email"
                         type="email"
+                        autoComplete="email"
+                        inputMode="email"
+                        aria-invalid={!!otpEmailError || undefined}
+                        aria-describedby={otpEmailError ? "personal-email-error" : undefined}
                         value={formDataPersonal.email ?? ""}
                         onChange={(e) => {
                           setFormDataPersonal({ ...formDataPersonal, email: e.target.value });
@@ -564,8 +599,12 @@ export default function CandidateProfilePage() {
                         className={`${inputCls} ${formDataPersonal.email !== perfil.personal?.email ? "border-amber-400 focus:ring-amber-400" : ""}`}
                       />
                       {otpEmailError && (
-                        <p className="text-red-500 text-xs flex items-center gap-1 mt-1">
-                          <AlertCircle className="w-3 h-3" /> {otpEmailError}
+                        <p
+                          id="personal-email-error"
+                          role="alert"
+                          className="text-red-500 text-xs flex items-center gap-1 mt-1"
+                        >
+                          <AlertCircle className="w-3 h-3" aria-hidden="true" /> {otpEmailError}
                         </p>
                       )}
                     </div>
@@ -573,21 +612,37 @@ export default function CandidateProfilePage() {
 
                   <div className="pt-2 space-y-4">
                     <p className={labelCls}>Links e Redes</p>
-                    {[["LinkedIn", "linkedin"], ["GitHub", "github"], ["Portfólio", "portfolio"]].map(([label, field]) => (
-                      <div key={field} className="space-y-1.5">
-                        <label className={labelCls}>{label}</label>
-                        <input type="text" value={formDataPersonal[field] ?? ""}
-                          onChange={(e) => setFormDataPersonal({ ...formDataPersonal, [field]: e.target.value })}
-                          placeholder="https://" className={inputCls} />
-                      </div>
-                    ))}
+                    {[["LinkedIn", "linkedin"], ["GitHub", "github"], ["Portfólio", "portfolio"]].map(([label, field]) => {
+                      const inputId = `personal-link-${field}`;
+                      return (
+                        <div key={field} className="space-y-1.5">
+                          <label htmlFor={inputId} className={labelCls}>{label}</label>
+                          <input
+                            id={inputId}
+                            name={field}
+                            type="url"
+                            inputMode="url"
+                            autoComplete="url"
+                            value={formDataPersonal[field] ?? ""}
+                            onChange={(e) => setFormDataPersonal({ ...formDataPersonal, [field]: e.target.value })}
+                            placeholder="https://"
+                            className={inputCls}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <div className="space-y-1.5 pt-2">
-                    <label className={labelCls}>Sobre Mim</label>
-                    <textarea rows={4} value={formDataPersonal.about ?? ""}
+                    <label htmlFor="personal-about" className={labelCls}>Sobre Mim</label>
+                    <textarea
+                      id="personal-about"
+                      name="about"
+                      rows={4}
+                      value={formDataPersonal.about ?? ""}
                       onChange={(e) => setFormDataPersonal({ ...formDataPersonal, about: e.target.value })}
-                      className={inputCls + " resize-none"} />
+                      className={inputCls + " resize-none"}
+                    />
                   </div>
                 </>
               )}
@@ -597,28 +652,53 @@ export default function CandidateProfilePage() {
                 <div className="space-y-6">
                   {formDataExperience.map((exp, i) => (
                     <div key={i} className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-900/50 relative">
-                      <button onClick={() => setFormDataExperience(formDataExperience.filter((_, j) => j !== i))}
-                        className="absolute top-4 right-4 text-rose-500 hover:text-rose-700"><Trash2 className="w-4 h-4" /></button>
-                      <div className="grid grid-cols-2 gap-4 mt-2">
-                        {[["Empresa", "company"], ["Cargo", "role"], ["Ano Início", "startYear"], ["Ano Fim", "endYear"]].map(([label, field]) => (
-                          <div key={field} className="space-y-1">
-                            <label className={labelCls}>{label}</label>
-                            <input type="text" value={exp[field] ?? ""}
-                              onChange={(e) => { const n = [...formDataExperience]; n[i] = { ...n[i], [field]: e.target.value }; setFormDataExperience(n); }}
-                              className={inputCls} disabled={field === "endYear" && exp.isCurrent} />
-                          </div>
-                        ))}
-                        <div className="col-span-2 space-y-1">
-                          <label className={labelCls}>Descrição</label>
-                          <textarea rows={3} value={exp.description ?? ""}
+                      <button
+                        type="button"
+                        onClick={() => setFormDataExperience(formDataExperience.filter((_, j) => j !== i))}
+                        aria-label={`Remover experiência ${i + 1}`}
+                        className="absolute top-2 right-2 inline-flex items-center justify-center w-11 h-11 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition"
+                      >
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
+                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                        {[["Empresa", "company"], ["Cargo", "role"], ["Ano Início", "startYear"], ["Ano Fim", "endYear"]].map(([label, field]) => {
+                          const inputId = `exp-${i}-${field}`;
+                          return (
+                            <div key={field} className="space-y-1">
+                              <label htmlFor={inputId} className={labelCls}>{label}</label>
+                              <input
+                                id={inputId}
+                                name={field}
+                                type="text"
+                                value={exp[field] ?? ""}
+                                onChange={(e) => { const n = [...formDataExperience]; n[i] = { ...n[i], [field]: e.target.value }; setFormDataExperience(n); }}
+                                className={inputCls}
+                                disabled={field === "endYear" && exp.isCurrent}
+                              />
+                            </div>
+                          );
+                        })}
+                        <div className="sm:col-span-2 space-y-1">
+                          <label htmlFor={`exp-${i}-description`} className={labelCls}>Descrição</label>
+                          <textarea
+                            id={`exp-${i}-description`}
+                            name="description"
+                            rows={3}
+                            value={exp.description ?? ""}
                             onChange={(e) => { const n = [...formDataExperience]; n[i] = { ...n[i], description: e.target.value }; setFormDataExperience(n); }}
-                            className={inputCls + " resize-none"} />
+                            className={inputCls + " resize-none"}
+                          />
                         </div>
                       </div>
                     </div>
                   ))}
-                  <button onClick={() => setFormDataExperience([...formDataExperience, { company: "", role: "", startYear: "", endYear: "", isCurrent: false, description: "" }])}
-                    className="text-indigo-600 font-bold text-sm flex items-center gap-1"><Plus className="w-4 h-4" /> Adicionar Experiência</button>
+                  <button
+                    type="button"
+                    onClick={() => setFormDataExperience([...formDataExperience, { company: "", role: "", startYear: "", endYear: "", isCurrent: false, description: "" }])}
+                    className="text-indigo-600 font-bold text-sm inline-flex items-center gap-1 min-h-[44px] px-2"
+                  >
+                    <Plus className="w-4 h-4" aria-hidden="true" /> Adicionar Experiência
+                  </button>
                 </div>
               )}
 
@@ -627,22 +707,41 @@ export default function CandidateProfilePage() {
                 <div className="space-y-6">
                   {formDataEducation.map((edu, i) => (
                     <div key={i} className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-900/50 relative">
-                      <button onClick={() => setFormDataEducation(formDataEducation.filter((_, j) => j !== i))}
-                        className="absolute top-4 right-4 text-rose-500"><Trash2 className="w-4 h-4" /></button>
-                      <div className="grid grid-cols-2 gap-4 mt-2">
-                        {[["Curso", "course"], ["Instituição", "institution"], ["Grau", "degree"], ["Ano Início", "startYear"], ["Ano Fim", "endYear"]].map(([label, field]) => (
-                          <div key={field} className="space-y-1">
-                            <label className={labelCls}>{label}</label>
-                            <input type="text" value={edu[field] ?? ""}
-                              onChange={(e) => { const n = [...formDataEducation]; n[i] = { ...n[i], [field]: e.target.value }; setFormDataEducation(n); }}
-                              className={inputCls} />
-                          </div>
-                        ))}
+                      <button
+                        type="button"
+                        onClick={() => setFormDataEducation(formDataEducation.filter((_, j) => j !== i))}
+                        aria-label={`Remover formação ${i + 1}`}
+                        className="absolute top-2 right-2 inline-flex items-center justify-center w-11 h-11 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition"
+                      >
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
+                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                        {[["Curso", "course"], ["Instituição", "institution"], ["Grau", "degree"], ["Ano Início", "startYear"], ["Ano Fim", "endYear"]].map(([label, field]) => {
+                          const inputId = `edu-${i}-${field}`;
+                          return (
+                            <div key={field} className="space-y-1">
+                              <label htmlFor={inputId} className={labelCls}>{label}</label>
+                              <input
+                                id={inputId}
+                                name={field}
+                                type="text"
+                                value={edu[field] ?? ""}
+                                onChange={(e) => { const n = [...formDataEducation]; n[i] = { ...n[i], [field]: e.target.value }; setFormDataEducation(n); }}
+                                className={inputCls}
+                              />
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
-                  <button onClick={() => setFormDataEducation([...formDataEducation, { course: "", institution: "", degree: "", startYear: "", endYear: "" }])}
-                    className="text-indigo-600 font-bold text-sm flex items-center gap-1"><Plus className="w-4 h-4" /> Adicionar Formação</button>
+                  <button
+                    type="button"
+                    onClick={() => setFormDataEducation([...formDataEducation, { course: "", institution: "", degree: "", startYear: "", endYear: "" }])}
+                    className="text-indigo-600 font-bold text-sm inline-flex items-center gap-1 min-h-[44px] px-2"
+                  >
+                    <Plus className="w-4 h-4" aria-hidden="true" /> Adicionar Formação
+                  </button>
                 </div>
               )}
 
@@ -650,22 +749,39 @@ export default function CandidateProfilePage() {
               {modalAberto === "skills" && (
                 <div className="space-y-5">
                   <div className="space-y-1.5">
-                    <label className={labelCls}>Stacks (separe por vírgula)</label>
-                    <textarea rows={3} value={formDataStacks} onChange={(e) => setFormDataStacks(e.target.value)}
-                      placeholder="React, Node.js, Python..." className={inputCls + " resize-none"} />
+                    <label htmlFor="skills-stacks" className={labelCls}>Stacks (separe por vírgula)</label>
+                    <textarea
+                      id="skills-stacks"
+                      name="stacks"
+                      rows={3}
+                      value={formDataStacks}
+                      onChange={(e) => setFormDataStacks(e.target.value)}
+                      placeholder="React, Node.js, Python..."
+                      className={inputCls + " resize-none"}
+                    />
                   </div>
                   <div className="space-y-1.5">
-                    <label className={labelCls}>Soft Skills (separe por vírgula)</label>
-                    <textarea rows={3} value={formDataSoftSkills} onChange={(e) => setFormDataSoftSkills(e.target.value)}
-                      placeholder="Liderança, Comunicação..." className={inputCls + " resize-none"} />
+                    <label htmlFor="skills-soft" className={labelCls}>Soft Skills (separe por vírgula)</label>
+                    <textarea
+                      id="skills-soft"
+                      name="softSkills"
+                      rows={3}
+                      value={formDataSoftSkills}
+                      onChange={(e) => setFormDataSoftSkills(e.target.value)}
+                      placeholder="Liderança, Comunicação..."
+                      className={inputCls + " resize-none"}
+                    />
                   </div>
                 </div>
               )}
             </div>
 
-            <div className="sticky bottom-0 bg-slate-50 dark:bg-[#1A1D2D] border-t border-slate-200 dark:border-slate-800 px-6 py-4 flex justify-end gap-3 z-10">
-              <button onClick={() => { setModalAberto(null); setOtpEmailError(""); }}
-                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+            <div className="sticky bottom-0 bg-slate-50 dark:bg-[#1A1D2D] border-t border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 z-10">
+              <button
+                type="button"
+                onClick={() => { setModalAberto(null); setOtpEmailError(""); }}
+                className="px-5 py-3 min-h-[44px] rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+              >
                 Cancelar
               </button>
               <button

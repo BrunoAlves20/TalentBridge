@@ -3,7 +3,7 @@
 // Cliente do Simulador de Entrevistas com IA.
 // Todas as rotas exigem JWT (Bearer). Use authHeaders() do auth.ts.
 
-import { authHeaders } from "./auth";
+import { authHeaders, apiFetch } from "./auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -44,7 +44,7 @@ async function handle<T>(res: Response): Promise<T> {
 
 export const simulatorService = {
   async createSession(input: { titulo?: string; cargo_alvo?: string } = {}): Promise<SimulatorSession> {
-    const res = await fetch(`${API_URL}/simulador/sessoes`, {
+    const res = await apiFetch(`${API_URL}/simulador/sessoes`, {
       method: "POST",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify(input),
@@ -53,7 +53,7 @@ export const simulatorService = {
   },
 
   async sendMessage(sessaoId: number, conteudo: string): Promise<SimulatorSession> {
-    const res = await fetch(`${API_URL}/simulador/sessoes/${sessaoId}/mensagens`, {
+    const res = await apiFetch(`${API_URL}/simulador/sessoes/${sessaoId}/mensagens`, {
       method: "POST",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({ conteudo }),
@@ -62,7 +62,7 @@ export const simulatorService = {
   },
 
   async finalize(sessaoId: number): Promise<SimulatorSession> {
-    const res = await fetch(`${API_URL}/simulador/sessoes/${sessaoId}/finalizar`, {
+    const res = await apiFetch(`${API_URL}/simulador/sessoes/${sessaoId}/finalizar`, {
       method: "POST",
       headers: authHeaders(),
     });
@@ -70,7 +70,7 @@ export const simulatorService = {
   },
 
   async getSession(sessaoId: number): Promise<SimulatorSession> {
-    const res = await fetch(`${API_URL}/simulador/sessoes/${sessaoId}`, {
+    const res = await apiFetch(`${API_URL}/simulador/sessoes/${sessaoId}`, {
       headers: authHeaders(),
     });
     return handle<SimulatorSession>(res);

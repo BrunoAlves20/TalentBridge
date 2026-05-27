@@ -14,7 +14,7 @@ HUNTER_TIMEOUT_SECONDS = 8
 
 # Em DEV_MODE o fluxo é fail-open total para não exigir chave externa em dev.
 # Em produção (DEV_MODE=false) qualquer falha torna-se fail-closed por segurança.
-DEV_MODE = os.getenv("DEV_MODE", "true").lower() == "true"
+DEV_MODE = os.getenv("DEV_MODE", "false").lower() == "true"
 
 # Resultados que permitem prosseguir
 _RESULTADOS_PERMITIDOS = {"deliverable", "risky"}

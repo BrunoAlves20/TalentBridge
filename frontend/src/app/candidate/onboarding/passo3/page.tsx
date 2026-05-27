@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { Step3Skills, Step3Data } from "@/components/candidate/onboarding/Step3Skills";
 import { Loader2, ChevronLeft, ChevronRight, CheckCircle, AlertCircle } from "lucide-react";
-import { API_URL } from "@/lib/api";
+import { apiFetch } from "@/services/auth";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 export default function Passo3Page() {
   const router = useRouter();
@@ -58,7 +60,7 @@ export default function Passo3Page() {
         softSkills: data3.softSkills,
       };
 
-      const response = await fetch(`${API_URL}/candidatos/onboarding`, {
+      const response = await apiFetch(`${API_URL}/candidatos/onboarding`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

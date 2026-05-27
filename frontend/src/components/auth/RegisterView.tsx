@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { UserRole } from "@/services/auth";
+import { persistSession, apiFetch, type UserRole } from "@/services/auth";
 import { EmailVerificationModal, type VerifySuccessPayload } from "@/components/auth/EmailVerificationModal";
 import { Mail, Lock, Loader2, ArrowRight, User, Briefcase, UserCircle } from "lucide-react";
 import { motion } from "framer-motion";
@@ -44,7 +44,7 @@ export function RegisterView() {
     setIsLoading(true);
     setError("");
     try {
-      const res = await fetch(`${API_URL}/auth/send-code`, {
+      const res = await apiFetch(`${API_URL}/auth/send-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, tipo: "cadastro", nome: name, senha: password, tipo_usuario: role }),
@@ -73,11 +73,11 @@ export function RegisterView() {
     localStorage.setItem("@TalentBridge:user", JSON.stringify(userData));
     localStorage.setItem("usuario_id", userData.id.toString());
 
-    // Persiste o JWT retornado pelo backend após a verificação do OTP.
+    // Persiste o JWT + cookies (para middleware) após a verificação do OTP.
     // Sem isso o usuário ficaria sem token e qualquer rota autenticada
     // (ex.: /simulador) retornaria 401.
     if (payload.access_token) {
-      localStorage.setItem("@TalentBridge:token", payload.access_token);
+      persistSession(payload.access_token, userData.role);
     }
 
     router.push(userData.role === "RECRUTADOR" ? "/recruiter/dashboard" : "/candidate/onboarding");

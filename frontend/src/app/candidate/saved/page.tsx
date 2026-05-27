@@ -7,6 +7,7 @@ import {
   Loader2, AlertCircle, RefreshCw, Building2
 } from "lucide-react";
 import Link from "next/link";
+import { apiFetch } from "@/services/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -200,7 +201,7 @@ export default function SavedJobsPage() {
     setLoading(true);
     setErro(null);
     try {
-      const res = await fetch(`${API_URL}/vagas/salvas/${candidatoId}`);
+      const res = await apiFetch(`${API_URL}/vagas/salvas/${candidatoId}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Erro ao carregar vagas salvas.");
       setVagas(data.vagas_salvas ?? []);
@@ -218,7 +219,7 @@ export default function SavedJobsPage() {
     if (!candidatoId) return;
     setRemovendoId(vagaId);
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `${API_URL}/vagas/salvas/${vagaId}?usuario_id=${candidatoId}`,
         { method: "DELETE" }
       );
@@ -240,7 +241,7 @@ export default function SavedJobsPage() {
     if (!candidatoId) return;
     setCandidatandoId(vagaId);
     try {
-      const res = await fetch(`${API_URL}/vagas/candidatar`, {
+      const res = await apiFetch(`${API_URL}/vagas/candidatar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vaga_id: vagaId, candidato_id: Number(candidatoId) }),
@@ -271,7 +272,7 @@ export default function SavedJobsPage() {
   const handleRemoverSilencioso = async (vagaId: number) => {
     if (!candidatoId) return;
     try {
-      await fetch(`${API_URL}/vagas/salvas/${vagaId}?usuario_id=${candidatoId}`, {
+      await apiFetch(`${API_URL}/vagas/salvas/${vagaId}?usuario_id=${candidatoId}`, {
         method: "DELETE",
       });
       setVagas((prev) => prev.filter((v) => v.vaga_id !== vagaId));
@@ -288,7 +289,7 @@ export default function SavedJobsPage() {
       // Chama DELETE em paralelo para cada vaga salva
       await Promise.all(
         vagas.map((v) =>
-          fetch(`${API_URL}/vagas/salvas/${v.vaga_id}?usuario_id=${candidatoId}`, {
+          apiFetch(`${API_URL}/vagas/salvas/${v.vaga_id}?usuario_id=${candidatoId}`, {
             method: "DELETE",
           })
         )

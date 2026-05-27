@@ -1,6 +1,41 @@
+# Python
 backend/__pycache__
+backend/**/__pycache__
 backend/venv
 backend/.venv
+backend/*.pyc
 backend/uploads/*
+
+# Node / Next
 frontend/node_modules
 frontend/.next
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDEs e editores
+.vscode
+.idea
+.claude
+*.swp
+*.swo
+
+# Markdown e docs (não precisam na imagem)
+*.md
+!frontend/docs/*.md
+
+# Env locais (.env é montado pelo compose; não copiar para a imagem)
+.env
+.env.local
+backend/.env
+frontend/.env.local
+
+# Logs e binários temporários
+*.log
+*.tmp
+*.bak
+
+# Smoke test e artefatos de dev
+smoke_test.sh

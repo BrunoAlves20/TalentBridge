@@ -20,13 +20,14 @@ import os
 import json
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, EmailStr
 from typing import Optional
+from jose import JWTError
 
 from database import get_db_connection
 from services.email_service import gerar_codigo_otp, enviar_codigo_verificacao
-from services.auth_service import hash_password, create_access_token
+from services.auth_service import hash_password, create_access_token, decode_access_token
 from services.hunter_service import verify_email as hunter_verify
 
 router = APIRouter(
@@ -112,11 +113,32 @@ def _salvar_codigo(cursor, ref_id: str, codigo: str, tipo: str, dados_pendentes:
 
 # ── POST /auth/send-code ──────────────────────────────────────────────────────
 
+def _exigir_auth_alteracao_email(tipo: str, usuario_id: int | None, authorization: str | None) -> None:
+    """
+    Para tipo=alteracao_email exige JWT válido cujo sub bate com usuario_id.
+    Outros tipos (cadastro/recuperacao) são públicos.
+    """
+    if tipo != "alteracao_email":
+        return
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Token de autenticação obrigatório para alterar e-mail.")
+    token = authorization.split(" ", 1)[1].strip()
+    try:
+        payload = decode_access_token(token)
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido.")
+    sub = int(payload.get("sub") or 0)
+    if not usuario_id or sub != usuario_id:
+        raise HTTPException(status_code=403, detail="Você só pode alterar o e-mail da sua própria conta.")
+
+
 @router.post("/send-code", status_code=200)
-def send_code(dados: SendCodeRequest):
+def send_code(dados: SendCodeRequest, authorization: str | None = Header(default=None)):
     tipo = dados.tipo
     if tipo not in ("cadastro", "recuperacao", "alteracao_email"):
         raise HTTPException(status_code=400, detail="Tipo inválido. Use: cadastro | recuperacao | alteracao_email")
+
+    _exigir_auth_alteracao_email(tipo, dados.usuario_id, authorization)
 
     conn = get_db_connection()
     if not conn:
@@ -180,8 +202,10 @@ def send_code(dados: SendCodeRequest):
                 "senha": dados.senha,
                 "tipo_usuario": dados.tipo_usuario,
             })
-            conn.commit()
+            # Enviar ANTES de commitar — se SMTP falhar, o rollback no except
+            # impede de gravar um código que o usuário nunca receberá.
             enviar_codigo_verificacao(dados.email, codigo, tipo)
+            conn.commit()
             return {"mensagem": "Código de verificação enviado para o e-mail informado."}
 
         # ── RECUPERAÇÃO DE SENHA ──────────────────────────────────────────────
@@ -207,8 +231,10 @@ def send_code(dados: SendCodeRequest):
 
             codigo = gerar_codigo_otp()
             _salvar_codigo(cursor, usuario_id, codigo, tipo, {"nova_senha": dados.senha})
-            conn.commit()
+            # Enviar antes de commitar — se SMTP falhar, rollback impede
+            # gravar código que o usuário nunca receberá.
             enviar_codigo_verificacao(dados.email, codigo, tipo)
+            conn.commit()
             return {"mensagem": "Código enviado. Verifique sua caixa de entrada."}
 
         # ── ALTERAÇÃO DE E-MAIL ───────────────────────────────────────────────
@@ -234,9 +260,10 @@ def send_code(dados: SendCodeRequest):
 
             codigo = gerar_codigo_otp()
             _salvar_codigo(cursor, dados.usuario_id, codigo, tipo, {"novo_email": dados.novo_email})
-            conn.commit()
-            # Código enviado para o NOVO e-mail (é ele que precisa ser confirmado)
+            # Código enviado para o NOVO e-mail (é ele que precisa ser confirmado).
+            # Enviar antes de commitar (rollback se SMTP falhar).
             enviar_codigo_verificacao(dados.novo_email, codigo, tipo)
+            conn.commit()
             return {"mensagem": "Código enviado para o novo e-mail. Verifique sua caixa de entrada."}
 
     except HTTPException:
@@ -252,12 +279,25 @@ def send_code(dados: SendCodeRequest):
 # ── POST /auth/verify-code ────────────────────────────────────────────────────
 
 @router.post("/verify-code", status_code=200)
-def verify_code(dados: VerifyCodeRequest):
+def verify_code(dados: VerifyCodeRequest, authorization: str | None = Header(default=None)):
     tipo = dados.tipo
     if tipo not in ("cadastro", "recuperacao", "alteracao_email"):
         raise HTTPException(status_code=400, detail="Tipo inválido.")
     if len(dados.codigo) != 6 or not dados.codigo.isdigit():
         raise HTTPException(status_code=400, detail="O código deve conter exatamente 6 dígitos.")
+
+    # Para alteracao_email exige JWT. Validamos contra o usuario_id contido
+    # em dados_pendentes mais tarde (depois de carregar o registro).
+    auth_user_id_para_alteracao: int | None = None
+    if tipo == "alteracao_email":
+        if not authorization or not authorization.lower().startswith("bearer "):
+            raise HTTPException(status_code=401, detail="Token de autenticação obrigatório para alterar e-mail.")
+        token = authorization.split(" ", 1)[1].strip()
+        try:
+            payload = decode_access_token(token)
+        except JWTError:
+            raise HTTPException(status_code=401, detail="Token inválido.")
+        auth_user_id_para_alteracao = int(payload.get("sub") or 0)
 
     conn = get_db_connection()
     if not conn:
@@ -284,6 +324,14 @@ def verify_code(dados: VerifyCodeRequest):
             if not row:
                 raise HTTPException(status_code=400, detail="Código incorreto. Verifique e tente novamente.")
             ref_id = row["ref_id"]
+            # Bloqueia troca de e-mail de outra conta: ref_id (usuario_id salvo
+            # no send-code) deve bater com o sub do JWT.
+            try:
+                ref_id_int = int(ref_id)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="Referência inválida.")
+            if auth_user_id_para_alteracao != ref_id_int:
+                raise HTTPException(status_code=403, detail="Você só pode confirmar alteração da sua própria conta.")
         else:
             # recuperacao: dados.email é o e-mail atual já cadastrado no banco
             ref_id = _get_usuario_id_por_email(cursor, dados.email)
@@ -327,6 +375,32 @@ def verify_code(dados: VerifyCodeRequest):
                 (nome, email, hash_password(senha), tipo_usuario),
             )
             novo_id = cursor.lastrowid
+
+            # Cria a linha de perfil correspondente já no cadastro, para que
+            # exista um registro mínimo em perfis_candidatos / perfis_recrutadores
+            # mesmo antes do onboarding. Os campos são preenchidos depois.
+            if tipo_usuario == "RECRUTADOR":
+                # empresa e cargo são NOT NULL no schema → usa string vazia como placeholder.
+                cursor.execute(
+                    """
+                    INSERT IGNORE INTO perfis_recrutadores
+                        (usuario_id, empresa, cargo, telefone, site_empresa, foto_perfil)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (novo_id, "", "", None, None, None),
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT IGNORE INTO perfis_candidatos
+                        (usuario_id, telefone, genero, idade, estado, cidade, cep,
+                         linkedin, github, portfolio, sobre_mim, foto_perfil)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (novo_id, None, None, None, None, None, None,
+                     None, None, None, None, None),
+                )
+
             conn.commit()
 
             # Gera o JWT do usuário recém-cadastrado para que ele já

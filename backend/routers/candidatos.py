@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from database import get_db_connection
+from dependencies import get_current_user
 from schemas import OnboardingPayload, PerfilUpdate
 from services.hunter_service import verify_email as hunter_verify
 
@@ -10,11 +11,15 @@ router = APIRouter(
 
 
 @router.post("/onboarding", status_code=201)
-def salvar_onboarding(dados: OnboardingPayload):
+def salvar_onboarding(dados: OnboardingPayload, current_user: dict = Depends(get_current_user)):
     """
     Salva (ou atualiza) o perfil completo do candidato:
     dados pessoais, formações, experiências, hard skills e soft skills.
+    Só permite editar o perfil do próprio usuário (JWT == dados.usuario_id).
     """
+    if dados.usuario_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Você só pode salvar seu próprio onboarding.")
+
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
@@ -126,8 +131,14 @@ def salvar_onboarding(dados: OnboardingPayload):
 
 
 @router.get("/perfil-completo/{usuario_id}")
-def obter_perfil_completo(usuario_id: int):
-    """Retorna o perfil completo do candidato (dados pessoais, formações, experiências e skills)."""
+def obter_perfil_completo(usuario_id: int, current_user: dict = Depends(get_current_user)):
+    """
+    Retorna o perfil completo do candidato.
+    Permitido para: o próprio candidato OU qualquer recrutador autenticado
+    (recrutadores precisam ver perfis para avaliar candidaturas).
+    """
+    if current_user["role"] != "RECRUTADOR" and usuario_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
@@ -218,12 +229,16 @@ def obter_perfil_completo(usuario_id: int):
 
 
 @router.put("/perfil-pessoal")
-def atualizar_perfil_pessoal(dados: PerfilUpdate):
+def atualizar_perfil_pessoal(dados: PerfilUpdate, current_user: dict = Depends(get_current_user)):
     """
     Atualiza os dados pessoais do candidato.
 
     Se o e-mail estiver sendo alterado, valida via Hunter.io antes de persistir.
+    Só permite editar o próprio perfil (JWT == dados.usuario_id).
     """
+    if dados.usuario_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Você só pode editar seu próprio perfil.")
+
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")

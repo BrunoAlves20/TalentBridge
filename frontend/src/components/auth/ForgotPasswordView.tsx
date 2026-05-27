@@ -14,6 +14,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mail, Lock, Loader2, ArrowRight, CheckCircle2, AlertCircle, ArrowLeft } from "lucide-react";
 import { EmailVerificationModal } from "@/components/auth/EmailVerificationModal";
+import { apiFetch } from "@/services/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -41,7 +42,7 @@ export function ForgotPasswordView({ onBack }: ForgotPasswordViewProps) {
     setError("");
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/auth/send-code`, {
+      const res = await apiFetch(`${API_URL}/auth/send-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, tipo: "recuperacao", senha: novaSenha }),
