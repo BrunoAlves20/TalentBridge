@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(cd \"/c/Users/victo/OneDrive/Área de Trabalho/TalentBridge\" && ls -la backend/ | head -20 && echo \"---\" && cat docker-compose.yml && echo \"---\" && cat Dockerfile.backend && echo \"---\" && cat Dockerfile.frontend)",
-      "Read(//c/c/Users/victo/OneDrive/Área de Trabalho/TalentBridge/**)"
-    ]
-  }
-}
