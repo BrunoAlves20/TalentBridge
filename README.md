@@ -22,8 +22,6 @@ O **TalentBridge** é uma aplicação moderna que conecta candidatos e recrutado
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado e rodando
 - Chave de API do [Google Gemini](https://aistudio.google.com/app/apikey) — **opcional em DEV_MODE**
 
-> A partir desta versão, o **MySQL roda como um serviço do Docker Compose** — você não precisa mais instalar MySQL na máquina. Quem já tinha MySQL local pode continuar usando alterando `DB_HOST` para `host.docker.internal` no `.env`.
-
 ---
 
 ## 🐋 Instalando o Docker Desktop
@@ -43,80 +41,103 @@ docker compose version
 
 ---
 
-## 🧩 Extensão Docker no VS Code (opcional)
-
-Para acompanhar os containers visualmente dentro do VS Code:
-
-1. Abra o VS Code
-2. Vá em **Extensões** (`Ctrl + Shift + X`)
-3. Pesquise por **Docker** (publicada pela Microsoft) e instale
-4. Pesquise por **Database Client** (publicada por Weijan Chen) e instale — permite visualizar e editar as tabelas do banco com interface gráfica
-
-Após instalar, os ícones aparecem na barra lateral do VS Code. Para conectar o Database Client ao banco:
-- Host: `127.0.0.1`
-- Port: `3306`
-- User: `root`
-- Password: `1234`
-- Database: `talentbridge`
-
----
-
 ## ⚙️ Configuração do ambiente
 
-1. Clone o repositório:
 ```bash
 git clone <url-do-repositorio>
 cd TalentBridge
+cp .env.example .env
 ```
 
-2. Copie os arquivos de exemplo e preencha suas credenciais:
-```bash
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env.local
-```
+Abra o `.env` e preencha seus dados. O único campo que muda entre os dois modos é o `DB_HOST` — veja a seção abaixo.
 
-3. Abra o `backend/.env`. Para rodar **apenas com Docker Compose** (recomendado), os valores padrão já apontam para o MySQL containerizado. Você só precisa de:
+---
 
+## 🗄️ Modos de Banco de Dados
+
+O projeto suporta dois modos. A troca é feita alterando **apenas `DB_HOST`** no `.env`.
+
+---
+
+### 🐳 Modo Docker (padrão)
+
+O MySQL sobe automaticamente como container junto com o projeto. Ideal para quem não tem MySQL instalado na máquina.
+
+**No `.env`:**
 ```env
-# Banco — o docker-compose sobrescreve DB_HOST=db automaticamente
-DB_USER=root
-DB_PASSWORD=1234
-DB_NAME=talentbridge
-DB_PORT=3306
-
-# JWT — gere com:  python -c "import secrets; print(secrets.token_hex(32))"
-JWT_SECRET=substitua_por_uma_string_aleatoria
-
-# IA — opcional em DEV_MODE (simulador e extração de CV funcionam offline)
-GEMINI_API_KEY=
-
-# DEV_MODE=true → OTP fixo 000000, sem Hunter.io, sem SMTP, social desativado
-DEV_MODE=true
+DB_HOST=db
+DB_PASSWORD=sua_senha_aqui
 ```
 
-> Se você prefere usar um MySQL já instalado na sua máquina, comente o serviço `db` no `docker-compose.yml` e defina `DB_HOST=host.docker.internal` no `.env`.
+**Subir o projeto:**
+```bash
+docker-compose --profile docker-db up --build
+```
+
+**Conectar no MySQL Workbench:**
+| Campo | Valor |
+| :--- | :--- |
+| Host | `127.0.0.1` |
+| Port | `3307` |
+| User | `root` |
+| Password | _(a que você definiu no `.env`)_ |
+
+> O banco é criado automaticamente na primeira execução. O schema e todas as tabelas são criados pelo backend ao subir.
+
+---
+
+### 🖥️ Modo Local
+
+Usa o MySQL já instalado na sua máquina. O banco e as tabelas ainda são criados automaticamente pelo backend ao subir — você só precisa que o MySQL esteja rodando.
+
+**No `.env`:**
+```env
+DB_HOST=host.docker.internal
+DB_PASSWORD=sua_senha_do_mysql_local
+```
+
+**Subir o projeto:**
+```bash
+docker-compose up --build
+```
+
+**Conectar no MySQL Workbench:**
+| Campo | Valor |
+| :--- | :--- |
+| Host | `127.0.0.1` |
+| Port | `3306` |
+| User | `root` |
+| Password | _(a senha do seu MySQL local)_ |
+
+> Certifique-se de que o MySQL local está rodando antes de subir os containers.
 
 ---
 
 ## 🚀 Como rodar
 
-### Primeira vez (ou após mudanças nos Dockerfiles)
+### Primeira vez
+
+**Modo Docker:**
+```bash
+docker-compose --profile docker-db up --build
+```
+
+**Modo Local:**
 ```bash
 docker-compose up --build
 ```
 
-Este comando vai:
-- Construir as imagens do backend e frontend
-- Instalar todas as dependências automaticamente
-- Criar o banco `talentbridge` e todas as tabelas no seu MySQL local
-- Subir o frontend e o backend
+### Nas vezes seguintes (sem mudanças nos Dockerfiles)
 
-### Nas vezes seguintes
+**Modo Docker:**
+```bash
+docker-compose --profile docker-db up
+```
+
+**Modo Local:**
 ```bash
 docker-compose up
 ```
-
-As imagens já estão prontas, então sobe muito mais rápido.
 
 ---
 
@@ -127,9 +148,8 @@ As imagens já estão prontas, então sobe muito mais rápido.
 | **Frontend** | http://localhost:3000 |
 | **Backend** | http://localhost:8000 |
 | **Documentação da API** | http://localhost:8000/docs |
-| **MySQL (no container)** | localhost:3307 (root / `1234` por padrão) |
-
-> ⚠ O MySQL do Docker é exposto na porta **3307** para não conflitar com um MySQL local na porta 3306, caso você já tenha um.
+| **MySQL Docker** | localhost:**3307** |
+| **MySQL Local** | localhost:**3306** |
 
 ---
 
@@ -145,84 +165,76 @@ O projeto já vem com o **Modo de Desenvolvimento ativo** para facilitar testes 
 | Botão Google | Redireciona para OAuth Google | Exibe aviso `⚙ modo dev` e não redireciona |
 | Botão LinkedIn | Redireciona para OAuth LinkedIn | Exibe aviso `⚙ modo dev` e não redireciona |
 
-Nenhum código de produção é removido — tudo é apenas desviado condicionalmente. Para voltar ao comportamento real, veja a seção abaixo.
+Nenhum código de produção é removido — tudo é apenas desviado condicionalmente.
 
 ---
 
 ## 🏭 Modo de Produção
 
-Para rodar o sistema com todos os serviços reais (e-mail, validação de e-mail, login social), siga os passos:
-
 ### 1. Obtenha as chaves de API necessárias
 
-Consulte o arquivo **`GuiaChaves.md`** na raiz do projeto — ele contém o passo a passo para obter cada credencial:
+Consulte o arquivo **`GuiaChaves.md`** na raiz do projeto:
 - Chave do **Google Gemini** (IA para extração de currículos)
 - Chave do **Hunter.io** (validação de e-mails)
 - **Senha de App do Gmail** (envio de e-mails OTP)
 - **Client ID e Secret do Google** (login social)
 - **Client ID e Secret do LinkedIn** (login social)
 
-### 2. Preencha o `backend/.env` com todas as credenciais
+### 2. Preencha o `.env` com todas as credenciais e defina
 
-Abra o .env e no final coloque o DEV_MODE=false
-
-### 3. Desative o DEV_MODE no frontend
-
-Abra `frontend/.env.local` e altere:
 ```env
+DEV_MODE=false
 NEXT_PUBLIC_DEV_MODE=false
 ```
 
-### 4. Reinicie os containers
+### 3. Reinicie os containers
 
+**Modo Docker:**
 ```bash
-docker compose down && docker compose up --build
+docker-compose --profile docker-db down && docker-compose --profile docker-db up --build
 ```
 
-> Nenhum outro arquivo precisa ser alterado. A troca de `true` para `false` nas variáveis de ambiente é suficiente para ativar o comportamento completo de produção.
+**Modo Local:**
+```bash
+docker-compose down && docker-compose up --build
+```
 
 ---
 
 ## 📋 Comandos úteis
 
-Ver logs de um serviço específico:
+Ver logs de um serviço:
 ```bash
 docker-compose logs backend
 docker-compose logs frontend
 ```
 
-Ver containers rodando:
-```bash
-docker ps
-```
-
 Encerrar os containers (mantém os dados):
 ```bash
-docker-compose down
+docker-compose --profile docker-db down    # Modo Docker
+docker-compose down                         # Modo Local
 ```
 
-Encerrar e apagar tudo (banco zerado na próxima vez):
+Encerrar e apagar o banco Docker (próxima vez começa do zero):
 ```bash
-docker-compose down -v
+docker-compose --profile docker-db down -v
 ```
 
-Rodar em segundo plano (sem travar o terminal):
+Rodar em segundo plano:
 ```bash
-docker-compose up -d
-```
-
-Acompanhar logs em tempo real no modo segundo plano:
-```bash
-docker-compose logs -f
+docker-compose --profile docker-db up -d   # Modo Docker
+docker-compose up -d                        # Modo Local
 ```
 
 ---
 
 ## 🔑 Variáveis de Ambiente
 
+Todas as variáveis ficam em **`.env`** na raiz do projeto.
+
 | Variável | Descrição |
 | :--- | :--- |
-| `DB_HOST` | Host do banco — use `host.docker.internal` com Docker |
+| `DB_HOST` | `db` para Docker / `host.docker.internal` para MySQL local |
 | `DB_USER` | Usuário do MySQL |
 | `DB_PASSWORD` | Senha do MySQL |
 | `DB_NAME` | Nome do banco (padrão: `talentbridge`) |
@@ -244,10 +256,8 @@ docker-compose logs -f
 | `LINKEDIN_REDIRECT_URI` | URI de callback do LinkedIn OAuth |
 | `FRONTEND_URL` | URL pública do frontend, usada nos redirecionamentos OAuth |
 | `CORS_ORIGINS` | Lista de origens permitidas, separadas por vírgula |
-| `DEV_MODE` | `true` ativa OTP fixo `000000`, mock de Hunter/Gemini, social desativado |
-| `NEXT_PUBLIC_API_URL` | (frontend) URL do backend, inlinada no bundle Next em build time |
-| `NEXT_PUBLIC_DEV_MODE` | (frontend) `true` mostra banner "DEV" e pré-preenche OTP no modal |
-| `FRONTEND_URL` | URL do frontend (usada pelo backend no redirect OAuth) |
+| `NEXT_PUBLIC_API_URL` | URL do backend, inlinada no bundle Next em build time |
+| `NEXT_PUBLIC_DEV_MODE` | `true` mostra banner "DEV" e pré-preenche OTP no modal |
 | `DEV_MODE` | `true` = modo de desenvolvimento / `false` = produção real |
 
 ---

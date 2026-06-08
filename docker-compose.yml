@@ -1,20 +1,30 @@
 services:
+
+  # ── Banco de Dados (Docker) ────────────────────────────────────────────────
+  # Ativo apenas quando USE_LOCAL_DB=false (ou ausente) no .env
+  # Para usar seu MySQL local, defina USE_LOCAL_DB=true no .env
   db:
     image: mysql:8.0
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-1234}
-      MYSQL_DATABASE: ${DB_NAME:-talentbridge}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_ROOT_HOST: "%"
     ports:
       - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD:-1234}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 20
+    profiles:
+      - docker-db
 
+  # ── Backend ───────────────────────────────────────────────────────────────
   backend:
     build:
       context: .
@@ -23,14 +33,14 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - backend/.env
+      - .env
     environment:
-      # Sobrescreve DB_HOST para apontar ao serviço do compose
-      DB_HOST: db
-      DB_PORT: 3306
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
     depends_on:
       db:
         condition: service_healthy
+        required: false
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -45,13 +55,11 @@ services:
       timeout: 5s
       retries: 10
 
+  # ── Frontend ──────────────────────────────────────────────────────────────
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
-      # Next.js inlina NEXT_PUBLIC_* no bundle em tempo de build; precisamos
-      # passar via build.args, não via environment (runtime), senão o JS
-      # compilado fica com o fallback do Dockerfile.
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
         NEXT_PUBLIC_DEV_MODE: ${NEXT_PUBLIC_DEV_MODE:-true}
@@ -62,8 +70,6 @@ services:
       backend:
         condition: service_healthy
     environment:
-      # Repetimos em runtime caso alguma lib client precise (Next standalone
-      # também respeita env runtime para variáveis não-inline). Inofensivo.
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
       NEXT_PUBLIC_DEV_MODE: ${NEXT_PUBLIC_DEV_MODE:-true}
 
