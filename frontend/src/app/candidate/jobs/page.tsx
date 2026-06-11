@@ -6,6 +6,7 @@ import {
   X, CheckCircle2, Loader2, Filter, RefreshCw, AlertCircle,
   Building2, ExternalLink
 } from "lucide-react";
+import { apiFetch } from "@/services/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -200,7 +201,7 @@ export default function ExplorarVagasPage() {
       }
       if (busca.trim()) params.set("busca", busca.trim());
 
-      const res = await fetch(`${API_URL}/vagas/abertas?${params.toString()}`);
+      const res = await apiFetch(`${API_URL}/vagas/abertas?${params.toString()}`);
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.detail || "Erro ao buscar vagas");
@@ -208,7 +209,7 @@ export default function ExplorarVagasPage() {
       // Verifica quais vagas o candidato já se inscreveu
       let candidaturasIds: number[] = [];
       if (candidatoId) {
-        const resC = await fetch(`${API_URL}/vagas/minhas-candidaturas/${candidatoId}`);
+        const resC = await apiFetch(`${API_URL}/vagas/minhas-candidaturas/${candidatoId}`);
         if (resC.ok) {
           const dataC = await resC.json();
           candidaturasIds = (dataC.candidaturas ?? []).map((c: any) => c.vaga_id);
@@ -241,7 +242,7 @@ export default function ExplorarVagasPage() {
     }
     setCandidatandoId(vagaId);
     try {
-      const res = await fetch(`${API_URL}/vagas/candidatar`, {
+      const res = await apiFetch(`${API_URL}/vagas/candidatar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vaga_id: vagaId, candidato_id: Number(candidatoId) }),

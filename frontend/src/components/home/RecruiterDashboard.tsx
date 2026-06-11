@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Award, TrendingUp, Users, Sparkles } from 'lucide-react';
 import { mockCandidates } from '@/data/mockData';
 
@@ -53,9 +54,12 @@ export function RecruiterDashboard() {
                                     </h4>
                                     <p className="text-sm text-muted-foreground mt-1">A IA processou e ranqueou 127 perfis enviados.</p>
                                 </div>
-                                <button className="text-indigo-500 hover:text-indigo-400 text-sm font-semibold transition hidden sm:block">
+                                <Link
+                                    href="/auth/register?role=RECRUTADOR"
+                                    className="text-indigo-500 hover:text-indigo-400 text-sm font-semibold transition hidden sm:block"
+                                >
                                     Ver Pipeline Completo →
-                                </button>
+                                </Link>
                             </div>
 
                             <div className="space-y-4">
@@ -133,9 +137,12 @@ export function RecruiterDashboard() {
                                                     </div>
                                                 </div>
 
-                                                <button className="w-full sm:w-auto mt-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors">
+                                                <Link
+                                                    href="/auth/register?role=RECRUTADOR"
+                                                    className="w-full sm:w-auto mt-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors text-center"
+                                                >
                                                     Ver Currículo
-                                                </button>
+                                                </Link>
                                             </div>
 
                                         </div>
@@ -147,9 +154,12 @@ export function RecruiterDashboard() {
                     </div>
 
                     <div className="mt-12 text-center">
-                        <button className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-8 py-4 rounded-xl transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
+                        <Link
+                            href="/auth/register?role=RECRUTADOR"
+                            className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-8 py-4 rounded-xl transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+                        >
                             Publicar Vaga Totalmente Grátis
-                        </button>
+                        </Link>
                     </div>
 
                 </div>

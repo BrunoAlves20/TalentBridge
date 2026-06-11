@@ -10,6 +10,7 @@ import { SimulatorCTA } from "@/components/candidate/dashboard/SimulatorCTA";
 import { ProfileStrength } from "@/components/candidate/dashboard/ProfileStrength";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/services/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -97,7 +98,7 @@ export default function CandidateDashboard() {
   // ── Carrega dados quando temos o usuarioId ────────────────────────────────
   const carregarDados = useCallback(async (id: string) => {
     // Candidaturas
-    fetch(`${API_URL}/vagas/minhas-candidaturas/${id}`)
+    apiFetch(`${API_URL}/vagas/minhas-candidaturas/${id}`)
       .then((r) => r.json())
       .then((data) => {
         setApplicationCount(data.candidaturas?.length ?? 0);
@@ -107,7 +108,7 @@ export default function CandidateDashboard() {
       .catch(() => setApplicationCount(0));
 
     // Vagas salvas
-    fetch(`${API_URL}/vagas/salvas/${id}`)
+    apiFetch(`${API_URL}/vagas/salvas/${id}`)
       .then((r) => r.json())
       .then((data) => {
         const ids = new Set<number>((data.vagas_salvas ?? []).map((v: any) => v.vaga_id as number));
@@ -117,7 +118,7 @@ export default function CandidateDashboard() {
 
     // Vagas abertas
     setLoadingVagas(true);
-    fetch(`${API_URL}/vagas/abertas`)
+    apiFetch(`${API_URL}/vagas/abertas`)
       .then((r) => r.json())
       .then((data) => setVagas((data.vagas ?? []).slice(0, 3)))
       .catch(() => {})
@@ -143,7 +144,7 @@ export default function CandidateDashboard() {
     if (!usuarioId) return;
     setCandidatandoId(vagaId);
     try {
-      const res = await fetch(`${API_URL}/vagas/candidatar`, {
+      const res = await apiFetch(`${API_URL}/vagas/candidatar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ vaga_id: vagaId, candidato_id: Number(usuarioId) }),
@@ -164,13 +165,13 @@ export default function CandidateDashboard() {
     const jaSalvo = salvos.has(vagaId);
     try {
       if (jaSalvo) {
-        const res = await fetch(
+        const res = await apiFetch(
           `${API_URL}/vagas/salvas/${vagaId}?usuario_id=${usuarioId}`,
           { method: "DELETE" }
         );
         if (res.ok) setSalvos((prev) => { const next = new Set(prev); next.delete(vagaId); return next; });
       } else {
-        const res = await fetch(`${API_URL}/vagas/salvar`, {
+        const res = await apiFetch(`${API_URL}/vagas/salvar`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ vaga_id: vagaId, usuario_id: Number(usuarioId) }),

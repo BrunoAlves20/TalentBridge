@@ -12,11 +12,12 @@
  * a rota correta (dashboard ou onboarding).
  */
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { persistSession } from "@/services/auth";
 
-export default function SocialCallbackPage() {
+function SocialCallbackInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
@@ -47,8 +48,9 @@ export default function SocialCallbackPage() {
     localStorage.removeItem("@TalentBridge:OnboardingData");
     sessionStorage.removeItem("@TalentBridge:OnboardingData");
     localStorage.setItem("@TalentBridge:user", JSON.stringify(userData));
-    localStorage.setItem("@TalentBridge:token", token);
     localStorage.setItem("usuario_id", userId);
+    // Grava o JWT no localStorage e cookies (para o middleware proteger rotas).
+    persistSession(token, role);
 
     // Redireciona conforme o perfil
     if (role === "RECRUTADOR") {
@@ -71,5 +73,20 @@ export default function SocialCallbackPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function SocialCallbackPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-muted-foreground">
+          <Loader2 className="animate-spin h-8 w-8" />
+          <p className="text-sm">Carregando...</p>
+        </div>
+      }
+    >
+      <SocialCallbackInner />
+    </Suspense>
   );
 }

@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from database import get_db_connection
+from dependencies import require_recrutador
 from schemas import VagaCreate, VagaUpdate, CandidaturaStatusUpdate
 
 router = APIRouter(
@@ -15,8 +16,13 @@ FILTRO_CANDIDATOS_ATIVOS = "c.status != 'REJEITADO'"
 # ==============================================================================
 
 @router.post("/vagas", status_code=201)
-def criar_vaga(dados: VagaCreate):
-    """Cria uma nova vaga associada ao recrutador logado."""
+def criar_vaga(dados: VagaCreate, current_user: dict = Depends(require_recrutador)):
+    """
+    Cria uma nova vaga associada ao recrutador logado.
+    O recrutador_id do payload é ignorado — usamos o sub do JWT.
+    """
+    recrutador_id = current_user["user_id"]
+
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
@@ -30,9 +36,9 @@ def criar_vaga(dados: VagaCreate):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'ABERTA')
             """,
             (
-                dados.recrutador_id,
+                recrutador_id,
                 dados.titulo,
-                dados.departamento,   # ✅ CORRIGIDO: campo estava faltando
+                dados.departamento,
                 dados.descricao,
                 dados.requisitos,
                 dados.modalidade,
@@ -43,6 +49,8 @@ def criar_vaga(dados: VagaCreate):
         conn.commit()
         return {"mensagem": "Vaga criada com sucesso!", "id": cursor.lastrowid}
 
+    except HTTPException:
+        raise
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=f"Erro ao criar vaga: {str(e)}")
@@ -52,8 +60,13 @@ def criar_vaga(dados: VagaCreate):
 
 
 @router.put("/vagas/{vaga_id}")
-def editar_vaga(vaga_id: int, dados: VagaUpdate):
-    """Edita uma vaga existente. Valida que ela pertence ao recrutador."""
+def editar_vaga(vaga_id: int, dados: VagaUpdate, current_user: dict = Depends(require_recrutador)):
+    """
+    Edita uma vaga existente. Só permite editar vaga do próprio recrutador.
+    O recrutador_id do payload é ignorado — usamos o sub do JWT.
+    """
+    recrutador_id = current_user["user_id"]
+
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
@@ -62,7 +75,7 @@ def editar_vaga(vaga_id: int, dados: VagaUpdate):
     try:
         cursor.execute(
             "SELECT id FROM vagas WHERE id = %s AND recrutador_id = %s",
-            (vaga_id, dados.recrutador_id),
+            (vaga_id, recrutador_id),
         )
         if not cursor.fetchone():
             raise HTTPException(status_code=404, detail="Vaga não encontrada ou sem permissão.")
@@ -100,11 +113,13 @@ def editar_vaga(vaga_id: int, dados: VagaUpdate):
 
 
 @router.delete("/vagas/{vaga_id}")
-def deletar_vaga(vaga_id: int, recrutador_id: int):
+def deletar_vaga(vaga_id: int, current_user: dict = Depends(require_recrutador)):
     """
-    Exclui uma vaga. Valida propriedade e arquiva candidaturas associadas
-    alterando o status para REJEITADO antes de deletar.
+    Exclui uma vaga. Só permite excluir vaga do próprio recrutador.
+    Arquiva candidaturas associadas alterando o status para REJEITADO antes de deletar.
     """
+    recrutador_id = current_user["user_id"]
+
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
@@ -137,11 +152,13 @@ def deletar_vaga(vaga_id: int, recrutador_id: int):
 
 
 @router.get("/minhas-vagas/{recrutador_id}")
-def listar_vagas_do_recrutador(recrutador_id: int):
+def listar_vagas_do_recrutador(recrutador_id: int, current_user: dict = Depends(require_recrutador)):
     """
-    Lista todas as vagas do recrutador com o contador real de candidatos
-    por vaga (alimenta Dashboard e Gerenciar Vagas).
+    Lista todas as vagas do recrutador autenticado.
+    Só permite ver vagas do próprio recrutador.
     """
+    if recrutador_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
@@ -169,6 +186,8 @@ def listar_vagas_do_recrutador(recrutador_id: int):
 
         return {"vagas": vagas}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar vagas: {str(e)}")
     finally:
@@ -181,10 +200,11 @@ def listar_vagas_do_recrutador(recrutador_id: int):
 # ==============================================================================
 
 @router.get("/pipeline/{vaga_id}/candidatos")
-def listar_candidatos_da_vaga(vaga_id: int):
+def listar_candidatos_da_vaga(vaga_id: int, current_user: dict = Depends(require_recrutador)):
     """
     Retorna todos os candidatos de uma vaga com perfil completo e status
     da candidatura. Alimenta a tela de Pipeline.
+    Só permite ver candidatos de vagas do próprio recrutador.
     """
     conn = get_db_connection()
     if not conn:
@@ -192,6 +212,13 @@ def listar_candidatos_da_vaga(vaga_id: int):
 
     cursor = conn.cursor(dictionary=True)
     try:
+        # Valida ownership da vaga.
+        cursor.execute("SELECT recrutador_id FROM vagas WHERE id = %s", (vaga_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Vaga não encontrada.")
+        if row["recrutador_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Você não tem acesso a essa vaga.")
         cursor.execute(
             f"""
             SELECT
@@ -238,6 +265,8 @@ def listar_candidatos_da_vaga(vaga_id: int):
 
         return {"candidatos": resultado}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao listar candidatos: {str(e)}")
     finally:
@@ -249,16 +278,32 @@ def listar_candidatos_da_vaga(vaga_id: int):
 # STATUS DA CANDIDATURA
 # ==============================================================================
 
-# ✅ Status válidos do banco: ENVIADO | EM_ANALISE | ENTREVISTA | APROVADO | REJEITADO
-STATUSES_VALIDOS = {"ENVIADO", "EM_ANALISE", "ENTREVISTA", "APROVADO", "REJEITADO"}
+# ✅ Status válidos do banco
+# Pipeline visual (5 etapas): Triagem → Teste Técnico → Entrevista → Proposta → Contratado
+# Estados internos correspondentes:
+#   ENVIADO    → Triagem
+#   EM_ANALISE → Teste Técnico
+#   ENTREVISTA → Entrevista
+#   PROPOSTA   → Proposta
+#   CONTRATADO → Contratado (status final positivo)
+#   APROVADO   → legado, mantido para compatibilidade com bancos antigos
+#   REJEITADO  → candidatura descartada
+STATUSES_VALIDOS = {
+    "ENVIADO", "EM_ANALISE", "ENTREVISTA", "PROPOSTA",
+    "CONTRATADO", "APROVADO", "REJEITADO",
+}
 
 @router.put("/candidaturas/{candidatura_id}/status")
-def atualizar_status_candidatura(candidatura_id: int, dados: CandidaturaStatusUpdate):
+def atualizar_status_candidatura(
+    candidatura_id: int,
+    dados: CandidaturaStatusUpdate,
+    current_user: dict = Depends(require_recrutador),
+):
     """
     Atualiza o status de uma candidatura.
-    Status válidos: ENVIADO | EM_ANALISE | ENTREVISTA | APROVADO | REJEITADO
+    Status válidos: ENVIADO | EM_ANALISE | ENTREVISTA | PROPOSTA | CONTRATADO | APROVADO | REJEITADO
+    Só permite mover candidaturas de vagas do próprio recrutador.
     """
-    # ✅ CORRIGIDO: valida o status antes de enviar ao banco
     if dados.status not in STATUSES_VALIDOS:
         raise HTTPException(
             status_code=422,
@@ -271,11 +316,21 @@ def atualizar_status_candidatura(candidatura_id: int, dados: CandidaturaStatusUp
 
     cursor = conn.cursor(dictionary=True)
     try:
+        # Valida que a candidatura pertence a uma vaga do recrutador autenticado.
         cursor.execute(
-            "SELECT id FROM candidaturas WHERE id = %s", (candidatura_id,)
+            """
+            SELECT v.recrutador_id
+            FROM candidaturas c
+            JOIN vagas v ON v.id = c.vaga_id
+            WHERE c.id = %s
+            """,
+            (candidatura_id,),
         )
-        if not cursor.fetchone():
+        row = cursor.fetchone()
+        if not row:
             raise HTTPException(status_code=404, detail="Candidatura não encontrada.")
+        if row["recrutador_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Você não tem acesso a essa candidatura.")
 
         cursor.execute(
             "UPDATE candidaturas SET status = %s WHERE id = %s",
@@ -299,10 +354,14 @@ def atualizar_status_candidatura(candidatura_id: int, dados: CandidaturaStatusUp
 # ==============================================================================
 
 @router.get("/dashboard/{recrutador_id}")
-def obter_dashboard(recrutador_id: int):
+def obter_dashboard(recrutador_id: int, current_user: dict = Depends(require_recrutador)):
     """
     Retorna dados agregados para o Dashboard do recrutador.
+    Só permite ver dashboard do próprio recrutador.
     """
+    if recrutador_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
+
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
@@ -333,14 +392,16 @@ def obter_dashboard(recrutador_id: int):
         candidatos_por_etapa = {row["status"]: row["total"] for row in cursor.fetchall()}
 
         total_candidatos = sum(candidatos_por_etapa.values())
-        aprovados = candidatos_por_etapa.get("APROVADO", 0)
+        # Conta tanto CONTRATADO (status novo) quanto APROVADO (legado) como "aprovados".
+        aprovados = candidatos_por_etapa.get("CONTRATADO", 0) + candidatos_por_etapa.get("APROVADO", 0)
         taxa_conversao = round((aprovados / total_candidatos * 100), 1) if total_candidatos > 0 else 0.0
 
         cursor.execute(
             """
-            SELECT u.id AS usuario_id, u.nome, u.email,
+            SELECT c.id AS candidatura_id,
+                   u.id AS usuario_id, u.nome, u.email,
                    c.status AS status_candidatura, c.data_candidatura,
-                   v.titulo AS vaga_titulo
+                   v.id AS vaga_id, v.titulo AS vaga_titulo
             FROM candidaturas c
             JOIN usuarios u ON u.id = c.candidato_id
             JOIN vagas v ON v.id = c.vaga_id
@@ -365,6 +426,8 @@ def obter_dashboard(recrutador_id: int):
             "candidatos_recentes": candidatos_recentes,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao obter dashboard: {str(e)}")
     finally:
@@ -377,7 +440,13 @@ def obter_dashboard(recrutador_id: int):
 # ==============================================================================
 
 @router.get("/ranking/{recrutador_id}")
-def obter_ranking(recrutador_id: int, vaga_id: int = None):
+def obter_ranking(
+    recrutador_id: int,
+    vaga_id: int = None,
+    current_user: dict = Depends(require_recrutador),
+):
+    if recrutador_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     """
     Lista candidatos ordenados por match score.
     """
@@ -438,8 +507,14 @@ def obter_ranking(recrutador_id: int, vaga_id: int = None):
             )
             soft_skills = [row["nome"] for row in cursor.fetchall()]
 
+            # Match por palavra inteira (não substring) para evitar falsos
+            # positivos tipo "java" casar dentro de "javascript".
+            import re as _re
             requisitos_lower = requisitos_vaga.lower()
-            matches = [s for s in hard_skills if s in requisitos_lower]
+            matches = [
+                s for s in hard_skills
+                if _re.search(rf"(?<![a-z0-9+#]){_re.escape(s)}(?![a-z0-9+#])", requisitos_lower)
+            ]
             match_score = round(len(matches) / len(hard_skills) * 100) if hard_skills else 0
 
             resultado.append({
@@ -456,13 +531,15 @@ def obter_ranking(recrutador_id: int, vaga_id: int = None):
                 "status_candidatura": cand["status_candidatura"],
                 "hard_skills": [s for s in hard_skills],
                 "soft_skills": soft_skills,
-                "skills_compatíveis": matches,
+                "skills_compativeis": matches,
                 "match_score": match_score,
             })
 
         resultado.sort(key=lambda x: x["match_score"], reverse=True)
         return {"ranking": resultado, "vagas_filtradas": [v["titulo"] for v in vagas]}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao obter ranking: {str(e)}")
     finally:

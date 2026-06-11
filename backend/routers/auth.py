@@ -1,13 +1,13 @@
 import json
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from database import get_db_connection
+from dependencies import get_current_user
 from schemas import (
-    UsuarioCreate, UsuarioLogin,
+    UsuarioLogin,
     AlterarSenhaRequest, PreferenciasUpdate,
 )
 from services.auth_service import hash_password, verify_password, create_access_token
-from services.hunter_service import verify_email as hunter_verify
 
 router = APIRouter(
     prefix="/usuarios",
@@ -16,53 +16,12 @@ router = APIRouter(
 
 
 # ==============================================================================
-# CADASTRO E LOGIN
+# LOGIN
 # ==============================================================================
-
-@router.post("/cadastro", status_code=201)
-def cadastrar_usuario(dados: UsuarioCreate):
-    """
-    Registra um novo usuário (candidato ou recrutador).
-
-    ⚠ Este endpoint cria o usuário SEM verificação de e-mail.
-    Para o fluxo com OTP (recomendado), use POST /auth/send-code
-    com tipo='cadastro' seguido de POST /auth/verify-code.
-
-    Mantido para compatibilidade e testes via /docs.
-    """
-    if not hunter_verify(dados.email):
-        raise HTTPException(
-            status_code=400,
-            detail="Este e-mail não parece ser real. Use um e-mail válido.",
-        )
-
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
-
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT id FROM usuarios WHERE email = %s", (dados.email,))
-        if cursor.fetchone():
-            raise HTTPException(status_code=400, detail="E-mail já cadastrado.")
-
-        senha_hash = hash_password(dados.senha)
-        cursor.execute(
-            "INSERT INTO usuarios (nome, email, senha_hash, tipo_usuario) VALUES (%s, %s, %s, %s)",
-            (dados.nome, dados.email, senha_hash, dados.tipo_usuario),
-        )
-        conn.commit()
-        return {"mensagem": "Usuário cadastrado com sucesso!", "id": cursor.lastrowid}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
-    finally:
-        cursor.close()
-        conn.close()
-
+# O cadastro de novos usuários acontece via fluxo OTP em
+# POST /auth/send-code + POST /auth/verify-code (routers/auth_otp.py).
+# O antigo POST /usuarios/cadastro foi removido — criava usuários sem
+# verificação de e-mail e duplicava o fluxo OTP.
 
 @router.post("/login")
 def login_usuario(dados: UsuarioLogin):
@@ -88,11 +47,15 @@ def login_usuario(dados: UsuarioLogin):
         if not verify_password(dados.senha, usuario["senha_hash"]):
             raise HTTPException(status_code=401, detail="Senha incorreta.")
 
+        # Considera o onboarding concluído apenas se o perfil tiver pelo menos
+        # cidade preenchida (campo obrigatório do passo 1 do onboarding).
+        # A linha pode existir vazia desde o cadastro inicial.
         cursor.execute(
-            "SELECT usuario_id FROM perfis_candidatos WHERE usuario_id = %s",
+            "SELECT cidade FROM perfis_candidatos WHERE usuario_id = %s",
             (usuario["id"],),
         )
-        tem_perfil = cursor.fetchone() is not None
+        perfil_row = cursor.fetchone()
+        tem_perfil = bool(perfil_row and perfil_row["cidade"])
 
         token = create_access_token(
             user_id=usuario["id"],
@@ -125,16 +88,20 @@ def login_usuario(dados: UsuarioLogin):
 # ==============================================================================
 
 @router.put("/senha")
-def alterar_senha(dados: AlterarSenhaRequest):
+def alterar_senha(dados: AlterarSenhaRequest, current_user: dict = Depends(get_current_user)):
     """
     Altera a senha do usuário autenticado.
     Exige a senha atual para confirmar identidade antes de gravar a nova.
+    O usuario_id do payload é IGNORADO — usamos o sub do JWT para evitar
+    que um usuário troque a senha de outro.
     """
     if len(dados.nova_senha) < 6:
         raise HTTPException(status_code=400, detail="A nova senha precisa ter pelo menos 6 caracteres.")
 
     if dados.senha_atual == dados.nova_senha:
         raise HTTPException(status_code=400, detail="A nova senha não pode ser igual à senha atual.")
+
+    usuario_id = current_user["user_id"]
 
     conn = get_db_connection()
     if not conn:
@@ -144,7 +111,7 @@ def alterar_senha(dados: AlterarSenhaRequest):
     try:
         cursor.execute(
             "SELECT id, senha_hash FROM usuarios WHERE id = %s",
-            (dados.usuario_id,),
+            (usuario_id,),
         )
         usuario = cursor.fetchone()
         if not usuario:
@@ -156,7 +123,7 @@ def alterar_senha(dados: AlterarSenhaRequest):
         nova_hash = hash_password(dados.nova_senha)
         cursor.execute(
             "UPDATE usuarios SET senha_hash = %s WHERE id = %s",
-            (nova_hash, dados.usuario_id),
+            (nova_hash, usuario_id),
         )
         conn.commit()
         return {"mensagem": "Senha alterada com sucesso!"}
@@ -172,39 +139,34 @@ def alterar_senha(dados: AlterarSenhaRequest):
 
 
 @router.delete("/{usuario_id}")
-def excluir_conta(usuario_id: int):
+def excluir_conta(usuario_id: int, current_user: dict = Depends(get_current_user)):
     """
     Exclui permanentemente a conta do usuário e todos os dados associados.
+    Só o próprio usuário pode deletar sua conta (JWT == path).
     """
+    if usuario_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Você só pode excluir sua própria conta.")
+
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
 
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT id FROM usuarios WHERE id = %s", (usuario_id,))
-        if not cursor.fetchone():
+        cursor.execute("SELECT email FROM usuarios WHERE id = %s", (usuario_id,))
+        row = cursor.fetchone()
+        if not row:
             raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+        email_usuario = row["email"]
 
-        # codigos_redefinicao_senha removida — substituída por codigos_verificacao
-        tabelas_dependentes = [
-            "candidaturas",
-            "vagas_salvas",
-            "hard_skills",
-            "soft_skills",
-            "formacoes",
-            "experiencias",
-            "perfis_candidatos",
-            "perfis_recrutadores",
-            "codigos_verificacao",  # limpa OTPs pendentes do usuário
-        ]
-        for tabela in tabelas_dependentes:
-            cursor.execute(f"DELETE FROM {tabela} WHERE usuario_id = %s", (usuario_id,))
-
-        # codigos_verificacao usa ref_id (pode ser int ou email) — limpa por ref_id também
+        # Todas as tabelas dependentes têm ON DELETE CASCADE na FK para usuarios.id,
+        # então só precisamos deletar o usuário — o MySQL limpa o resto.
+        # EXCEÇÃO: codigos_verificacao usa ref_id (string), sem FK formal.
+        # Limpamos pelos dois possíveis valores: usuario_id (recuperação/alteração)
+        # e email (cadastro pendente).
         cursor.execute(
-            "DELETE FROM codigos_verificacao WHERE ref_id = %s",
-            (str(usuario_id),),
+            "DELETE FROM codigos_verificacao WHERE ref_id IN (%s, %s)",
+            (str(usuario_id), email_usuario),
         )
 
         cursor.execute("DELETE FROM usuarios WHERE id = %s", (usuario_id,))
@@ -226,8 +188,10 @@ def excluir_conta(usuario_id: int):
 # ==============================================================================
 
 @router.get("/{usuario_id}/preferencias")
-def obter_preferencias(usuario_id: int):
+def obter_preferencias(usuario_id: int, current_user: dict = Depends(get_current_user)):
     """Retorna as preferências de notificação do candidato."""
+    if usuario_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")
@@ -268,8 +232,14 @@ def obter_preferencias(usuario_id: int):
 
 
 @router.put("/{usuario_id}/preferencias")
-def atualizar_preferencias(usuario_id: int, dados: PreferenciasUpdate):
+def atualizar_preferencias(
+    usuario_id: int,
+    dados: PreferenciasUpdate,
+    current_user: dict = Depends(get_current_user),
+):
     """Persiste as preferências de notificação (merge com as existentes)."""
+    if usuario_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     conn = get_db_connection()
     if not conn:
         raise HTTPException(status_code=500, detail="Erro de conexão com o banco.")

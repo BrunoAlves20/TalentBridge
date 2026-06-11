@@ -136,15 +136,33 @@ export function Step2Review({ method, onNext, onBack, initialData }: Step2Review
   };
 
   const handleProfilePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const imageUrl = URL.createObjectURL(file);
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+
+    // Limite de 2MB — o backend guarda como base64 em LONGTEXT.
+    // 2MB de imagem viram ~2.7MB de base64, ainda confortável para um INSERT.
+    const MAX_BYTES = 2 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      alert("A imagem é maior que 2MB. Escolha uma menor.");
+      e.target.value = ""; // limpa o input para o usuário poder reescolher
+      return;
+    }
+
+    // Lê como data URL (base64). Diferente de URL.createObjectURL, que cria
+    // um blob: URL válido só na sessão atual do navegador (some no logout/F5),
+    // o base64 pode ser persistido no banco e usado por qualquer dispositivo.
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : "";
+      if (!dataUrl) return;
       setFormData(prev => ({
         ...prev,
-        personal: { ...prev.personal, profilePicture: imageUrl }
+        personal: { ...prev.personal, profilePicture: dataUrl }
       }));
       if (showError) setShowError(false);
-    }
+    };
+    reader.onerror = () => alert("Não foi possível ler a imagem. Tente outro arquivo.");
+    reader.readAsDataURL(file);
   };
 
   const handleEducationChange = (id: number, field: string, value: string) => {
@@ -331,8 +349,16 @@ export function Step2Review({ method, onNext, onBack, initialData }: Step2Review
               <div className="space-y-2 md:col-span-2">
                 <label className="text-[11px] uppercase tracking-widest font-bold text-slate-500 dark:text-slate-400">Foto de Perfil <span className="text-emerald-400 lowercase font-medium tracking-normal ml-1">(Opcional)</span></label>
                 <input type="file" accept="image/png, image/jpeg" onChange={handleProfilePictureUpload} className="w-full font-medium text-slate-900 dark:text-slate-400 bg-slate-50 dark:bg-[#1A1D2D] border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-emerald-500 transition-all file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 dark:file:bg-emerald-500/20 dark:file:text-emerald-400 hover:file:bg-emerald-100 dark:hover:file:bg-emerald-500/30 cursor-pointer" />
-                {formData.personal.profilePicture && formData.personal.profilePicture.startsWith("blob:") && (
-                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-1 pl-1">✓ Imagem carregada </div>
+                {formData.personal.profilePicture && formData.personal.profilePicture.startsWith("data:") && (
+                  <div className="flex items-center gap-3 mt-2 pl-1">
+                    {/* Pré-visualização da foto escolhida */}
+                    <img
+                      src={formData.personal.profilePicture}
+                      alt="Pré-visualização"
+                      className="w-12 h-12 rounded-full object-cover border-2 border-emerald-400"
+                    />
+                    <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">✓ Imagem carregada</div>
+                  </div>
                 )}
               </div>
             </div>
@@ -393,6 +419,7 @@ export function Step2Review({ method, onNext, onBack, initialData }: Step2Review
                         <option value="Fundamental">Fundamental</option>
                         <option value="Médio">Médio / Colegial</option>
                         <option value="Técnico">Ensino Técnico</option>
+                        <option value="Curso">Curso Livre / Profissionalizante</option>
                         <option value="Superior">Ensino Superior / Bacharelado</option>
                         <option value="Pós-graduação">Pós-graduação</option>
                         <option value="Mestrado">Mestrado</option>

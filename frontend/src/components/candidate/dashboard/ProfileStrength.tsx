@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Award, CheckCircle2, Circle } from "lucide-react";
+import { apiFetch } from "@/services/auth";
 
 interface ProfileStrengthProps {
   usuarioId?: string | null;
@@ -56,7 +57,7 @@ export function ProfileStrength({ usuarioId }: ProfileStrengthProps) {
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
-    fetch(`${API_URL}/candidatos/perfil-completo/${usuarioId}`)
+    apiFetch(`${API_URL}/candidatos/perfil-completo/${usuarioId}`)
       .then((r) => r.json())
       .then((data) => {
         const p = data?.personal ?? {};

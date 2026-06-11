@@ -5,13 +5,14 @@ import {
   Briefcase, MapPin, Clock, CheckCircle2, XCircle,
   Search, AlertCircle, Loader2, Calendar, RefreshCw, Trash2
 } from "lucide-react";
+import { apiFetch } from "@/services/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-type StatusBackend = "ENVIADO" | "EM_ANALISE" | "ENTREVISTA" | "APROVADO" | "REJEITADO";
-type AppStatus = "Em análise" | "Teste Técnico" | "Entrevista" | "Aprovado" | "Reprovado";
+type StatusBackend = "ENVIADO" | "EM_ANALISE" | "ENTREVISTA" | "PROPOSTA" | "CONTRATADO" | "APROVADO" | "REJEITADO";
+type AppStatus = "Em análise" | "Teste Técnico" | "Entrevista" | "Proposta" | "Aprovado" | "Reprovado";
 
 interface Application {
   candidatura_id: number;
@@ -32,7 +33,9 @@ const STATUS_LABEL: Record<StatusBackend, AppStatus> = {
   ENVIADO: "Em análise",
   EM_ANALISE: "Teste Técnico",
   ENTREVISTA: "Entrevista",
-  APROVADO: "Aprovado",
+  PROPOSTA: "Proposta",
+  CONTRATADO: "Aprovado",
+  APROVADO: "Aprovado", // legado
   REJEITADO: "Reprovado",
 };
 
@@ -55,6 +58,10 @@ const statusConfig: Record<AppStatus, { classes: string; dot: string }> = {
     classes: "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-400",
     dot: "bg-indigo-500",
   },
+  Proposta: {
+    classes: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
+    dot: "bg-amber-500",
+  },
   Aprovado: {
     classes: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
     dot: "bg-emerald-500",
@@ -69,7 +76,8 @@ const progressStep: Record<AppStatus, number> = {
   "Em análise": 1,
   "Teste Técnico": 2,
   Entrevista: 3,
-  Aprovado: 4,
+  Proposta: 4,
+  Aprovado: 5,
   Reprovado: 0,
 };
 
@@ -139,7 +147,7 @@ export default function ApplicationsPage() {
     setLoading(true);
     setErro(null);
     try {
-      const res = await fetch(`${API_URL}/vagas/minhas-candidaturas/${candidatoId}`);
+      const res = await apiFetch(`${API_URL}/vagas/minhas-candidaturas/${candidatoId}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail);
       setApplications(data.candidaturas ?? []);
@@ -156,7 +164,7 @@ export default function ApplicationsPage() {
     if (!candidatoId) return;
     setCancelando(candidaturaId);
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `${API_URL}/vagas/candidaturas/${candidaturaId}?candidato_id=${candidatoId}`,
         { method: "DELETE" }
       );
@@ -184,8 +192,8 @@ export default function ApplicationsPage() {
 
   const counts = {
     total: applications.length,
-    ativas: applications.filter((a) => !["APROVADO", "REJEITADO"].includes(a.status_candidatura)).length,
-    aprovadas: applications.filter((a) => a.status_candidatura === "APROVADO").length,
+    ativas: applications.filter((a) => !["CONTRATADO", "APROVADO", "REJEITADO"].includes(a.status_candidatura)).length,
+    aprovadas: applications.filter((a) => a.status_candidatura === "CONTRATADO" || a.status_candidatura === "APROVADO").length,
   };
 
   return (

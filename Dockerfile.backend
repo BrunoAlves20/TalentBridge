@@ -1,18 +1,37 @@
 FROM python:3.11-slim
+
+# Variáveis de ambiente para Python rodar de forma previsível em container
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
 WORKDIR /app
+
+# Dependências de sistema (curl usado pelo healthcheck do compose)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Cria usuário não-root para rodar a aplicação.
+RUN groupadd --system --gid 1001 app \
+    && useradd --system --uid 1001 --gid app --home /app --shell /usr/sbin/nologin app
+
+# Instala dependências Python primeiro para aproveitar o cache do Docker
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Código da aplicação
 COPY backend/ .
 COPY Database/db.sql ./Database/db.sql
-RUN pip install --no-cache-dir \
-    fastapi \
-    uvicorn \
-    mysql-connector-python \
-    "bcrypt==4.0.1" \
-    python-dotenv \
-    google-genai \
-    PyPDF2 \
-    python-multipart \
-    "pydantic[email]" \
-    python-jose[cryptography] \
-    passlib[bcrypt] \
-    httpx
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+COPY Database/seed.sql ./Database/seed.sql
+
+# Cria diretório de uploads e ajusta dono.
+RUN mkdir -p /app/uploads /app/Database \
+    && chown -R app:app /app
+
+USER app
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

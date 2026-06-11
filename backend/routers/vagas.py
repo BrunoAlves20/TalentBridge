@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from database import get_db_connection
+from dependencies import get_current_user
 from schemas import CandidaturaCreate, VagaSalvaCreate
 
 router = APIRouter(
@@ -73,7 +74,9 @@ def listar_vagas_abertas(modalidade: str = None, busca: str = None):
 # ==============================================================================
 
 @router.post("/salvar", status_code=201)
-def salvar_vaga(dados: VagaSalvaCreate):
+def salvar_vaga(dados: VagaSalvaCreate, current_user: dict = Depends(get_current_user)):
+    if dados.usuario_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Você só pode salvar vagas para sua própria conta.")
     """
     Salva uma vaga na lista de interesse do candidato.
     Retorna 409 se a vaga já estiver salva pelo mesmo candidato.
@@ -116,7 +119,9 @@ def salvar_vaga(dados: VagaSalvaCreate):
 
 
 @router.get("/salvas/{usuario_id}")
-def listar_vagas_salvas(usuario_id: int):
+def listar_vagas_salvas(usuario_id: int, current_user: dict = Depends(get_current_user)):
+    if usuario_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     """
     Lista todas as vagas salvas por um candidato com os detalhes completos
     da vaga e empresa. Alimenta a tela /candidate/saved.
@@ -168,7 +173,9 @@ def listar_vagas_salvas(usuario_id: int):
 
 
 @router.delete("/salvas/{vaga_id}")
-def remover_vaga_salva(vaga_id: int, usuario_id: int):
+def remover_vaga_salva(vaga_id: int, usuario_id: int, current_user: dict = Depends(get_current_user)):
+    if usuario_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     """
     Remove uma vaga da lista de salvas do candidato.
     O usuario_id é obrigatório via query param para garantir que o candidato
@@ -209,7 +216,9 @@ def remover_vaga_salva(vaga_id: int, usuario_id: int):
 # ==============================================================================
 
 @router.post("/candidatar", status_code=201)
-def candidatar_se(dados: CandidaturaCreate):
+def candidatar_se(dados: CandidaturaCreate, current_user: dict = Depends(get_current_user)):
+    if dados.candidato_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Você só pode se candidatar pelo seu próprio usuário.")
     """
     Registra a candidatura de um candidato a uma vaga.
     Retorna 409 se já houver candidatura para o mesmo par (vaga, candidato).
@@ -252,7 +261,9 @@ def candidatar_se(dados: CandidaturaCreate):
 
 
 @router.get("/minhas-candidaturas/{candidato_id}")
-def listar_minhas_candidaturas(candidato_id: int):
+def listar_minhas_candidaturas(candidato_id: int, current_user: dict = Depends(get_current_user)):
+    if candidato_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado.")
     """
     Lista o histórico completo de candidaturas de um candidato com status,
     datas e dados da vaga/empresa. Alimenta a tela /candidate/applications.
@@ -303,7 +314,9 @@ def listar_minhas_candidaturas(candidato_id: int):
 
 
 @router.delete("/candidaturas/{candidatura_id}")
-def cancelar_candidatura(candidatura_id: int, candidato_id: int):
+def cancelar_candidatura(candidatura_id: int, candidato_id: int, current_user: dict = Depends(get_current_user)):
+    if candidato_id != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Você só pode cancelar suas próprias candidaturas.")
     """
     Cancela uma candidatura. Só o próprio candidato pode cancelar e apenas
     enquanto o status ainda for ENVIADO.

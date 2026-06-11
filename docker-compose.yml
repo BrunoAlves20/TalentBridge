@@ -1,12 +1,46 @@
 services:
+
+  # ── Banco de Dados (Docker) ────────────────────────────────────────────────
+  # Ativo apenas quando USE_LOCAL_DB=false (ou ausente) no .env
+  # Para usar seu MySQL local, defina USE_LOCAL_DB=true no .env
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    profiles:
+      - docker-db
+
+  # ── Backend ───────────────────────────────────────────────────────────────
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
     env_file:
-      - backend/.env
+      - .env
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
     dns:
       - 8.8.8.8
       - 8.8.4.4
@@ -15,18 +49,29 @@ services:
     volumes:
       - ./backend:/app
       - ./Database:/app/Database
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
+  # ── Frontend ──────────────────────────────────────────────────────────────
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+        NEXT_PUBLIC_DEV_MODE: ${NEXT_PUBLIC_DEV_MODE:-true}
+    restart: unless-stopped
     ports:
       - "3000:3000"
     depends_on:
-      - backend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      backend:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      NEXT_PUBLIC_DEV_MODE: ${NEXT_PUBLIC_DEV_MODE:-true}
 
 volumes:
   db_data:

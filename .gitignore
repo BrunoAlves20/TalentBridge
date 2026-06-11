@@ -54,3 +54,6 @@ Thumbs.db
 *.suo
 *.userfrontend.zip
 *.zip
+
+# ── Claude Code (configurações locais do agente) ──────────────────────────────
+.claude/

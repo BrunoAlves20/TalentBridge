@@ -3,12 +3,8 @@ from typing import List, Optional
 
 
 # ── Autenticação ──────────────────────────────────────────────────────────────
-
-class UsuarioCreate(BaseModel):
-    nome: str
-    email: EmailStr
-    senha: str
-    tipo_usuario: str
+# UsuarioCreate foi removido — o cadastro acontece via fluxo OTP definido
+# inline em routers/auth_otp.py (SendCodeRequest / VerifyCodeRequest).
 
 
 class UsuarioLogin(BaseModel):

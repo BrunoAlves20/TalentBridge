@@ -5,12 +5,13 @@ import {
   Plus, Search, Edit3, Trash2, X, Briefcase,
   MapPin, Clock, Users, ChevronDown, AlertCircle
 } from "lucide-react";
+import { apiFetch } from "@/services/auth";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
 type ContractType = "CLT" | "PJ" | "Estágio" | "Freelance";
 type WorkMode = "Remoto" | "Híbrido" | "Presencial";
-type JobStatus = "Aberta" | "Pausada" | "Fechada";
+type JobStatus = "Aberta" | "Pausada" | "Encerrada";
 
 interface Job {
   id: number;
@@ -56,8 +57,8 @@ const statusConfig: Record<JobStatus, { label: string; classes: string }> = {
     label: "Pausada",
     classes: "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20",
   },
-  Fechada: {
-    label: "Fechada",
+  Encerrada: {
+    label: "Encerrada",
     classes: "bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-700/30 dark:text-slate-400 dark:border-slate-700/50",
   },
 };
@@ -272,7 +273,7 @@ function JobModal({
           <div className="space-y-2">
             <FieldLabel>Status da Vaga</FieldLabel>
             <div className="flex gap-3">
-              {(["Aberta", "Pausada", "Fechada"] as JobStatus[]).map((s) => (
+              {(["Aberta", "Pausada", "Encerrada"] as JobStatus[]).map((s) => (
                 <button
                   key={s}
                   onClick={() => set("status", s)}
@@ -384,7 +385,7 @@ export default function JobsPage() {
     const recrutadorId = localStorage.getItem("usuario_id");
     if (!recrutadorId) return;
 
-    fetch(`${API_URL}/recrutador/minhas-vagas/${recrutadorId}`)
+    apiFetch(`${API_URL}/recrutador/minhas-vagas/${recrutadorId}`)
       .then(res => res.json())
       .then(data => {
         if (data.vagas) {
@@ -399,7 +400,7 @@ export default function JobsPage() {
               contractType: "CLT" as ContractType,
               salaryMin: salaryParts[0]?.trim() || "",
               salaryMax: salaryParts[1]?.trim() || "",
-              status: (v.status === "ABERTA" ? "Aberta" : v.status === "PAUSADA" ? "Pausada" : "Fechada") as JobStatus,
+              status: (v.status === "ABERTA" ? "Aberta" : v.status === "PAUSADA" ? "Pausada" : "Encerrada") as JobStatus,
               description: v.descricao || "",
               requirements: v.requisitos || "",
               applicants: v.total_candidatos || 0,
@@ -424,11 +425,11 @@ export default function JobsPage() {
     if (!recrutadorId) return;
 
     const modalidadeMap: Record<string, string> = { "Remoto": "REMOTO", "Híbrido": "HIBRIDO", "Presencial": "PRESENCIAL" };
-    const statusMap: Record<string, string> = { "Aberta": "ABERTA", "Pausada": "PAUSADA", "Fechada": "FECHADA" };
+    const statusMap: Record<string, string> = { "Aberta": "ABERTA", "Pausada": "PAUSADA", "Encerrada": "ENCERRADA" };
 
     try {
       if (modalJob && (modalJob as Job).id) {
-        const res = await fetch(`${API_URL}/recrutador/vagas/${(modalJob as Job).id}`, {
+        const res = await apiFetch(`${API_URL}/recrutador/vagas/${(modalJob as Job).id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -449,7 +450,7 @@ export default function JobsPage() {
           );
         }
       } else {
-        const res = await fetch(`${API_URL}/recrutador/vagas`, {
+        const res = await apiFetch(`${API_URL}/recrutador/vagas`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -487,7 +488,7 @@ export default function JobsPage() {
       const recrutadorId = localStorage.getItem("usuario_id");
       if (!recrutadorId) return;
       try {
-        const res = await fetch(`${API_URL}/recrutador/vagas/${deleteJob.id}?recrutador_id=${recrutadorId}`, { method: "DELETE" });
+        const res = await apiFetch(`${API_URL}/recrutador/vagas/${deleteJob.id}?recrutador_id=${recrutadorId}`, { method: "DELETE" });
         if (res.ok) {
           setJobs((prev) => prev.filter((j) => j.id !== deleteJob.id));
         }
@@ -537,7 +538,7 @@ export default function JobsPage() {
             />
           </div>
           <div className="flex gap-2">
-            {(["Todas", "Aberta", "Pausada", "Fechada"] as const).map((s) => (
+            {(["Todas", "Aberta", "Pausada", "Encerrada"] as const).map((s) => (
               <button
                 key={s}
                 onClick={() => setFilterStatus(s)}

@@ -23,6 +23,7 @@ import {
   Github, Linkedin, Globe, UploadCloud, FileCheck, AlertCircle, Download
 } from "lucide-react";
 import { EmailVerificationModal, type VerifySuccessPayload } from "@/components/auth/EmailVerificationModal";
+import { apiFetch } from "@/services/auth";
 
 const getApiUrl = () => process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -42,6 +43,11 @@ export default function CandidateProfilePage() {
   const [hasCvSaved, setHasCvSaved]   = useState<boolean>(false);
   const [isCheckingCv, setIsCheckingCv] = useState<boolean>(true);
   const cvInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Upload de foto de perfil (acessado pelo botão sobre o avatar)
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const [modalAberto, setModalAberto] = useState<"personal" | "experience" | "education" | "skills" | null>(null);
   const [formDataPersonal, setFormDataPersonal]     = useState<any>({});
@@ -72,7 +78,7 @@ export default function CandidateProfilePage() {
       const usuarioId = localStorage.getItem("usuario_id");
       if (!usuarioId) { setFetchError("not_found"); setIsLoading(false); return; }
       try {
-        const response = await fetch(`${getApiUrl()}/candidatos/perfil-completo/${usuarioId}`);
+        const response = await apiFetch(`${getApiUrl()}/candidatos/perfil-completo/${usuarioId}`);
         if (response.ok) setPerfil(await response.json());
         else if (response.status === 404) setFetchError("not_found");
         else setFetchError("offline");
@@ -84,7 +90,7 @@ export default function CandidateProfilePage() {
       const usuarioId = localStorage.getItem("usuario_id");
       if (!usuarioId) return;
       try {
-        const response = await fetch(`${getApiUrl()}/candidatos/verificar-cv/${usuarioId}`);
+        const response = await apiFetch(`${getApiUrl()}/candidatos/verificar-cv/${usuarioId}`);
         if (response.ok) {
           const data = await response.json();
           setHasCvSaved(data.existe);
@@ -112,7 +118,7 @@ export default function CandidateProfilePage() {
     setIsSaving(true);
     const usuarioId = localStorage.getItem("usuario_id");
     try {
-      const r = await fetch(`${getApiUrl()}/candidatos/perfil-pessoal`, {
+      const r = await apiFetch(`${getApiUrl()}/candidatos/perfil-pessoal`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ usuario_id: Number(usuarioId), ...data }),
@@ -165,7 +171,7 @@ export default function CandidateProfilePage() {
     try {
       // Solicita o código OTP para o novo e-mail.
       // O backend verifica: duplicata no banco + Hunter.io.
-      const res = await fetch(`${getApiUrl()}/auth/send-code`, {
+      const res = await apiFetch(`${getApiUrl()}/auth/send-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -226,7 +232,7 @@ export default function CandidateProfilePage() {
         stacks:     stacksArray,
         softSkills: softSkillsArray,
       };
-      const r = await fetch(`${getApiUrl()}/candidatos/onboarding`, {
+      const r = await apiFetch(`${getApiUrl()}/candidatos/onboarding`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -238,6 +244,78 @@ export default function CandidateProfilePage() {
       alert(e.message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Troca/upload da foto de perfil direto do card (sem precisar abrir o modal).
+  // Lê como base64 (data URL) — mesma estratégia do onboarding — e dispara um
+  // PUT em /candidatos/perfil-pessoal mantendo os demais campos intactos.
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPhotoError(null);
+    if (!e.target.files || !e.target.files[0]) return;
+    const file = e.target.files[0];
+
+    if (!file.type.startsWith("image/")) {
+      setPhotoError("Selecione um arquivo de imagem (PNG, JPG).");
+      e.target.value = "";
+      return;
+    }
+    const MAX_BYTES = 2 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      setPhotoError("A imagem deve ter no máximo 2MB.");
+      e.target.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = typeof reader.result === "string" ? reader.result : "";
+      if (!dataUrl) return;
+
+      setIsUploadingPhoto(true);
+      try {
+        const usuarioId = localStorage.getItem("usuario_id");
+        const novoPersonal = { ...perfil.personal, profilePicture: dataUrl };
+        const r = await apiFetch(`${getApiUrl()}/candidatos/perfil-pessoal`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ usuario_id: Number(usuarioId), ...novoPersonal }),
+        });
+        if (!r.ok) throw new Error("Erro ao salvar a foto.");
+        setPerfil({ ...perfil, personal: novoPersonal });
+      } catch (err: any) {
+        setPhotoError(err.message ?? "Não foi possível salvar a foto.");
+      } finally {
+        setIsUploadingPhoto(false);
+        // Permite re-selecionar o mesmo arquivo após erro
+        if (photoInputRef.current) photoInputRef.current.value = "";
+      }
+    };
+    reader.onerror = () => {
+      setPhotoError("Não foi possível ler a imagem.");
+      setIsUploadingPhoto(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = async () => {
+    if (!confirm("Remover a foto de perfil?")) return;
+    setPhotoError(null);
+    setIsUploadingPhoto(true);
+    try {
+      const usuarioId = localStorage.getItem("usuario_id");
+      const novoPersonal = { ...perfil.personal, profilePicture: "" };
+      const r = await apiFetch(`${getApiUrl()}/candidatos/perfil-pessoal`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usuario_id: Number(usuarioId), ...novoPersonal }),
+      });
+      if (!r.ok) throw new Error("Erro ao remover a foto.");
+      setPerfil({ ...perfil, personal: novoPersonal });
+    } catch (err: any) {
+      setPhotoError(err.message ?? "Não foi possível remover a foto.");
+    } finally {
+      setIsUploadingPhoto(false);
     }
   };
 
@@ -260,7 +338,7 @@ export default function CandidateProfilePage() {
     try {
       await new Promise(r => setTimeout(r, 600));
       setCvUploadState('extracting');
-      const response = await fetch(`${getApiUrl()}/candidatos/extrair-cv`, { method: 'POST', body: formData });
+      const response = await apiFetch(`${getApiUrl()}/candidatos/extrair-cv`, { method: 'POST', body: formData });
       if (!response.ok) { const err = await response.json(); throw new Error(err.detail || 'Erro ao processar o currículo.'); }
 
       const data = await response.json();
@@ -273,7 +351,7 @@ export default function CandidateProfilePage() {
         stacks:     extracted.stacks     ?? perfil.stacks,
         softSkills: extracted.softSkills ?? perfil.softSkills,
       };
-      const saveRes = await fetch(`${getApiUrl()}/candidatos/onboarding`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const saveRes = await apiFetch(`${getApiUrl()}/candidatos/onboarding`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!saveRes.ok) throw new Error('Erro ao salvar os dados extraídos.');
       setPerfil(payload);
       setCvUploadState('done');
@@ -341,6 +419,16 @@ export default function CandidateProfilePage() {
   const inputCls = "w-full bg-slate-50 dark:bg-[#1A1D2D] border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white text-sm transition";
   const labelCls = "text-[11px] font-bold text-slate-500 uppercase tracking-widest";
 
+  // Listas reutilizadas nos selects de Experiência e Formação.
+  // Anos: dos últimos 50 anos até o ano atual + 6 (cobre previsão de formatura).
+  const currentYear = new Date().getFullYear();
+  const YEARS = Array.from({ length: 57 }, (_, i) => String(currentYear + 6 - i));
+  const MONTHS: Array<[string, string]> = [
+    ["01", "Janeiro"], ["02", "Fevereiro"], ["03", "Março"], ["04", "Abril"],
+    ["05", "Maio"], ["06", "Junho"], ["07", "Julho"], ["08", "Agosto"],
+    ["09", "Setembro"], ["10", "Outubro"], ["11", "Novembro"], ["12", "Dezembro"],
+  ];
+
   return (
     <div className="max-w-5xl mx-auto animate-in fade-in duration-500 pb-12">
       <button onClick={() => router.push("/candidate/dashboard")} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-medium mb-8 transition-colors">
@@ -405,10 +493,60 @@ export default function CandidateProfilePage() {
             <Edit3 className="w-4 h-4" /> <span className="hidden sm:inline">Editar Pessoal</span>
           </button>
           <div className="flex flex-col md:flex-row gap-8 items-start">
-            <div className="w-32 h-32 rounded-3xl bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 flex flex-col items-center justify-center shrink-0 border-4 border-white dark:border-[#0B0E14] shadow-lg overflow-hidden">
-              {personal?.profilePicture
-                ? <img src={personal.profilePicture} alt="Foto" className="w-full h-full object-cover" />
-                : <User className="w-12 h-12" />}
+            <div className="flex flex-col items-center gap-2">
+              <div className="relative group/photo">
+                <div className="w-32 h-32 rounded-3xl bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 flex flex-col items-center justify-center shrink-0 border-4 border-white dark:border-[#0B0E14] shadow-lg overflow-hidden">
+                  {/* Só renderiza <img> se a string for um data URL (base64) ou http(s).
+                      Strings legadas começando com "blob:" são URLs de objeto que só
+                      existem na sessão original do navegador — viram imagem quebrada
+                      depois do logout. Nesses casos exibimos o fallback. */}
+                  {personal?.profilePicture &&
+                   (personal.profilePicture.startsWith("data:") || personal.profilePicture.startsWith("http"))
+                    ? <img src={personal.profilePicture} alt="Foto" className="w-full h-full object-cover" />
+                    : <User className="w-12 h-12" />}
+                  {isUploadingPhoto && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-white animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Botão "câmera" sobreposto — aciona o input file oculto */}
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={isUploadingPhoto}
+                  aria-label="Trocar foto de perfil"
+                  className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center shadow-lg ring-4 ring-white dark:ring-[#0B0E14] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <UploadCloud className="w-4 h-4" />
+                </button>
+
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/png, image/jpeg, image/jpg, image/webp"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+              </div>
+
+              {/* Link "Remover" só quando há foto válida salva */}
+              {personal?.profilePicture &&
+               (personal.profilePicture.startsWith("data:") || personal.profilePicture.startsWith("http")) && (
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  disabled={isUploadingPhoto}
+                  className="text-xs font-medium text-rose-500 hover:text-rose-600 transition disabled:opacity-50"
+                >
+                  Remover foto
+                </button>
+              )}
+
+              {photoError && (
+                <p className="text-xs text-rose-500 text-center max-w-[12rem]">{photoError}</p>
+              )}
             </div>
             <div className="flex-1 space-y-4 w-full">
               <div>
@@ -481,17 +619,36 @@ export default function CandidateProfilePage() {
         </div>
 
         {/* CARDS: SKILLS */}
+        {/*
+          ⚠ Tailwind JIT purga classes interpoladas em runtime (`bg-${color}-100`).
+          Em build de produção essas classes não existem no CSS gerado. Por isso
+          mantemos uma TABELA ESTÁTICA com todas as variantes que usamos.
+        */}
         <div className="grid md:grid-cols-2 gap-6">
           {[
-            { label: "Stacks",      data: stacks,      color: "purple", icon: <Wrench className="w-5 h-5" />,       pillCls: "bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20" },
-            { label: "Soft-Skills", data: softSkills,  color: "pink",   icon: <HeartHandshake className="w-5 h-5" />, pillCls: "bg-pink-50 text-pink-700 border-pink-100 dark:bg-pink-500/10 dark:text-pink-400 dark:border-pink-500/20" },
-          ].map(({ label, data, color, icon, pillCls }) => (
+            {
+              label: "Stacks",
+              data: stacks,
+              icon: <Wrench className="w-5 h-5" />,
+              iconCls: "bg-purple-100 text-purple-600",
+              buttonCls: "text-slate-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-500/10",
+              pillCls: "bg-purple-50 text-purple-700 border-purple-100 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20",
+            },
+            {
+              label: "Soft-Skills",
+              data: softSkills,
+              icon: <HeartHandshake className="w-5 h-5" />,
+              iconCls: "bg-pink-100 text-pink-600",
+              buttonCls: "text-slate-400 hover:text-pink-600 hover:bg-pink-50 dark:hover:bg-pink-500/10",
+              pillCls: "bg-pink-50 text-pink-700 border-pink-100 dark:bg-pink-500/10 dark:text-pink-400 dark:border-pink-500/20",
+            },
+          ].map(({ label, data, icon, iconCls, buttonCls, pillCls }) => (
             <div key={label} className="bg-white dark:bg-[#0B0E14] border border-slate-200 dark:border-slate-800/50 rounded-3xl p-8 shadow-sm relative group">
-              <button onClick={openModalSkills} className={`absolute top-6 right-6 p-2 text-slate-400 hover:text-${color}-600 hover:bg-${color}-50 dark:hover:bg-${color}-500/10 rounded-xl transition-colors`}>
+              <button onClick={openModalSkills} className={`absolute top-6 right-6 p-2 ${buttonCls} rounded-xl transition-colors`}>
                 <Edit3 className="w-4 h-4" />
               </button>
               <div className="flex items-center gap-3 mb-6">
-                <div className={`w-10 h-10 rounded-xl bg-${color}-100 text-${color}-600 flex items-center justify-center`}>{icon}</div>
+                <div className={`w-10 h-10 rounded-xl ${iconCls} flex items-center justify-center`}>{icon}</div>
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white">{label}</h3>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -529,24 +686,84 @@ export default function CandidateProfilePage() {
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {[
-                      ["Nome Completo", "fullName", "text"],
-                      ["Telefone",      "phone",    "text"],
-                      ["Idade",         "age",      "text"],
-                      ["Cidade",        "city",     "text"],
-                      ["Estado (UF)",   "state",    "text"],
-                      ["CEP",           "zipCode",  "text"],
-                    ].map(([label, field, type]) => (
-                      <div key={field} className="space-y-1.5">
-                        <label className={labelCls}>{label}</label>
-                        <input type={type} value={formDataPersonal[field] ?? ""}
-                          onChange={(e) => setFormDataPersonal({ ...formDataPersonal, [field]: e.target.value })}
-                          className={inputCls} />
-                      </div>
-                    ))}
+                      ["Nome Completo", "fullName", "text",  "name"],
+                      ["Telefone",      "phone",    "tel",   "tel"],
+                      ["Cidade",        "city",     "text",  "address-level2"],
+                      ["CEP",           "zipCode",  "text",  "postal-code"],
+                    ].map(([label, field, type, autoComp]) => {
+                      const inputId = `personal-${field}`;
+                      return (
+                        <div key={field} className="space-y-1.5">
+                          <label htmlFor={inputId} className={labelCls}>{label}</label>
+                          <input
+                            id={inputId}
+                            name={field}
+                            type={type}
+                            autoComplete={autoComp}
+                            value={formDataPersonal[field] ?? ""}
+                            onChange={(e) => setFormDataPersonal({ ...formDataPersonal, [field]: e.target.value })}
+                            className={inputCls}
+                          />
+                        </div>
+                      );
+                    })}
+
+                    {/* Idade — numérico com min/max razoáveis */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="personal-age" className={labelCls}>Idade</label>
+                      <input
+                        id="personal-age"
+                        name="age"
+                        type="number"
+                        min={14}
+                        max={120}
+                        inputMode="numeric"
+                        value={formDataPersonal.age ?? ""}
+                        onChange={(e) => setFormDataPersonal({ ...formDataPersonal, age: e.target.value })}
+                        className={inputCls}
+                      />
+                    </div>
+
+                    {/* Gênero — select com opções padronizadas */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="personal-gender" className={labelCls}>Gênero</label>
+                      <select
+                        id="personal-gender"
+                        name="gender"
+                        value={formDataPersonal.gender ?? ""}
+                        onChange={(e) => setFormDataPersonal({ ...formDataPersonal, gender: e.target.value })}
+                        className={inputCls}
+                      >
+                        <option value="">Selecione</option>
+                        <option value="Feminino">Feminino</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Não-binário">Não-binário</option>
+                        <option value="Outro">Outro</option>
+                        <option value="Prefiro não informar">Prefiro não informar</option>
+                      </select>
+                    </div>
+
+                    {/* Estado — select de UFs em ordem alfabética */}
+                    <div className="space-y-1.5">
+                      <label htmlFor="personal-state" className={labelCls}>Estado (UF)</label>
+                      <select
+                        id="personal-state"
+                        name="state"
+                        autoComplete="address-level1"
+                        value={formDataPersonal.state ?? ""}
+                        onChange={(e) => setFormDataPersonal({ ...formDataPersonal, state: e.target.value })}
+                        className={inputCls}
+                      >
+                        <option value="">Selecione</option>
+                        {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map(uf => (
+                          <option key={uf} value={uf}>{uf}</option>
+                        ))}
+                      </select>
+                    </div>
 
                     {/* FIX 3: campo E-mail com destaque visual quando alterado */}
                     <div className="space-y-1.5 col-span-full">
-                      <label className={labelCls}>
+                      <label htmlFor="personal-email" className={labelCls}>
                         E-mail
                         {formDataPersonal.email !== perfil.personal?.email && (
                           <span className="ml-2 text-amber-500 normal-case font-normal tracking-normal text-xs">
@@ -555,7 +772,13 @@ export default function CandidateProfilePage() {
                         )}
                       </label>
                       <input
+                        id="personal-email"
+                        name="email"
                         type="email"
+                        autoComplete="email"
+                        inputMode="email"
+                        aria-invalid={!!otpEmailError || undefined}
+                        aria-describedby={otpEmailError ? "personal-email-error" : undefined}
                         value={formDataPersonal.email ?? ""}
                         onChange={(e) => {
                           setFormDataPersonal({ ...formDataPersonal, email: e.target.value });
@@ -564,8 +787,12 @@ export default function CandidateProfilePage() {
                         className={`${inputCls} ${formDataPersonal.email !== perfil.personal?.email ? "border-amber-400 focus:ring-amber-400" : ""}`}
                       />
                       {otpEmailError && (
-                        <p className="text-red-500 text-xs flex items-center gap-1 mt-1">
-                          <AlertCircle className="w-3 h-3" /> {otpEmailError}
+                        <p
+                          id="personal-email-error"
+                          role="alert"
+                          className="text-red-500 text-xs flex items-center gap-1 mt-1"
+                        >
+                          <AlertCircle className="w-3 h-3" aria-hidden="true" /> {otpEmailError}
                         </p>
                       )}
                     </div>
@@ -573,21 +800,37 @@ export default function CandidateProfilePage() {
 
                   <div className="pt-2 space-y-4">
                     <p className={labelCls}>Links e Redes</p>
-                    {[["LinkedIn", "linkedin"], ["GitHub", "github"], ["Portfólio", "portfolio"]].map(([label, field]) => (
-                      <div key={field} className="space-y-1.5">
-                        <label className={labelCls}>{label}</label>
-                        <input type="text" value={formDataPersonal[field] ?? ""}
-                          onChange={(e) => setFormDataPersonal({ ...formDataPersonal, [field]: e.target.value })}
-                          placeholder="https://" className={inputCls} />
-                      </div>
-                    ))}
+                    {[["LinkedIn", "linkedin"], ["GitHub", "github"], ["Portfólio", "portfolio"]].map(([label, field]) => {
+                      const inputId = `personal-link-${field}`;
+                      return (
+                        <div key={field} className="space-y-1.5">
+                          <label htmlFor={inputId} className={labelCls}>{label}</label>
+                          <input
+                            id={inputId}
+                            name={field}
+                            type="url"
+                            inputMode="url"
+                            autoComplete="url"
+                            value={formDataPersonal[field] ?? ""}
+                            onChange={(e) => setFormDataPersonal({ ...formDataPersonal, [field]: e.target.value })}
+                            placeholder="https://"
+                            className={inputCls}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <div className="space-y-1.5 pt-2">
-                    <label className={labelCls}>Sobre Mim</label>
-                    <textarea rows={4} value={formDataPersonal.about ?? ""}
+                    <label htmlFor="personal-about" className={labelCls}>Sobre Mim</label>
+                    <textarea
+                      id="personal-about"
+                      name="about"
+                      rows={4}
+                      value={formDataPersonal.about ?? ""}
                       onChange={(e) => setFormDataPersonal({ ...formDataPersonal, about: e.target.value })}
-                      className={inputCls + " resize-none"} />
+                      className={inputCls + " resize-none"}
+                    />
                   </div>
                 </>
               )}
@@ -595,77 +838,366 @@ export default function CandidateProfilePage() {
               {/* EXPERIÊNCIA */}
               {modalAberto === "experience" && (
                 <div className="space-y-6">
-                  {formDataExperience.map((exp, i) => (
+                  {formDataExperience.length === 0 && (
+                    <p className="text-sm text-slate-500 text-center py-4">
+                      Nenhuma experiência cadastrada. Clique abaixo para adicionar.
+                    </p>
+                  )}
+                  {formDataExperience.map((exp, i) => {
+                    const updateField = (field: string, value: any) => {
+                      const n = [...formDataExperience];
+                      n[i] = { ...n[i], [field]: value };
+                      setFormDataExperience(n);
+                    };
+                    return (
                     <div key={i} className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-900/50 relative">
-                      <button onClick={() => setFormDataExperience(formDataExperience.filter((_, j) => j !== i))}
-                        className="absolute top-4 right-4 text-rose-500 hover:text-rose-700"><Trash2 className="w-4 h-4" /></button>
-                      <div className="grid grid-cols-2 gap-4 mt-2">
-                        {[["Empresa", "company"], ["Cargo", "role"], ["Ano Início", "startYear"], ["Ano Fim", "endYear"]].map(([label, field]) => (
-                          <div key={field} className="space-y-1">
-                            <label className={labelCls}>{label}</label>
-                            <input type="text" value={exp[field] ?? ""}
-                              onChange={(e) => { const n = [...formDataExperience]; n[i] = { ...n[i], [field]: e.target.value }; setFormDataExperience(n); }}
-                              className={inputCls} disabled={field === "endYear" && exp.isCurrent} />
+                      <button
+                        type="button"
+                        onClick={() => setFormDataExperience(formDataExperience.filter((_, j) => j !== i))}
+                        aria-label={`Remover experiência ${i + 1}`}
+                        className="absolute top-2 right-2 inline-flex items-center justify-center w-11 h-11 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition"
+                      >
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
+                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2 pr-12">
+                        {/* Cargo primeiro — é o campo de destaque visual no card */}
+                        <div className="space-y-1">
+                          <label htmlFor={`exp-${i}-role`} className={labelCls}>Cargo</label>
+                          <input
+                            id={`exp-${i}-role`}
+                            type="text"
+                            value={exp.role ?? ""}
+                            onChange={(e) => updateField("role", e.target.value)}
+                            className={inputCls}
+                            placeholder="Ex: Desenvolvedor Full Stack"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label htmlFor={`exp-${i}-company`} className={labelCls}>Empresa</label>
+                          <input
+                            id={`exp-${i}-company`}
+                            type="text"
+                            value={exp.company ?? ""}
+                            onChange={(e) => updateField("company", e.target.value)}
+                            className={inputCls}
+                          />
+                        </div>
+
+                        {/* Início: mês + ano lado a lado */}
+                        <div className="space-y-1">
+                          <label className={labelCls}>Início</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <select
+                              aria-label="Mês de início"
+                              value={exp.startMonth ?? ""}
+                              onChange={(e) => updateField("startMonth", e.target.value)}
+                              className={inputCls}
+                            >
+                              <option value="">Mês</option>
+                              {MONTHS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                            </select>
+                            <select
+                              aria-label="Ano de início"
+                              value={exp.startYear ?? ""}
+                              onChange={(e) => updateField("startYear", e.target.value)}
+                              className={inputCls}
+                            >
+                              <option value="">Ano</option>
+                              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
                           </div>
-                        ))}
-                        <div className="col-span-2 space-y-1">
-                          <label className={labelCls}>Descrição</label>
-                          <textarea rows={3} value={exp.description ?? ""}
-                            onChange={(e) => { const n = [...formDataExperience]; n[i] = { ...n[i], description: e.target.value }; setFormDataExperience(n); }}
-                            className={inputCls + " resize-none"} />
+                        </div>
+
+                        {/* Fim: mês + ano, desabilitados se isCurrent */}
+                        <div className="space-y-1">
+                          <label className={labelCls}>Fim</label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <select
+                              aria-label="Mês de fim"
+                              value={exp.endMonth ?? ""}
+                              onChange={(e) => updateField("endMonth", e.target.value)}
+                              disabled={!!exp.isCurrent}
+                              className={inputCls + " disabled:opacity-50 disabled:cursor-not-allowed"}
+                            >
+                              <option value="">Mês</option>
+                              {MONTHS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                            </select>
+                            <select
+                              aria-label="Ano de fim"
+                              value={exp.endYear ?? ""}
+                              onChange={(e) => updateField("endYear", e.target.value)}
+                              disabled={!!exp.isCurrent}
+                              className={inputCls + " disabled:opacity-50 disabled:cursor-not-allowed"}
+                            >
+                              <option value="">Ano</option>
+                              {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Checkbox "trabalho aqui atualmente" */}
+                        <div className="sm:col-span-2 flex items-center gap-2">
+                          <input
+                            id={`exp-${i}-current`}
+                            type="checkbox"
+                            checked={!!exp.isCurrent}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              const n = [...formDataExperience];
+                              n[i] = {
+                                ...n[i],
+                                isCurrent: checked,
+                                // limpa fim quando marcar "atual"
+                                ...(checked ? { endMonth: "", endYear: "" } : {}),
+                              };
+                              setFormDataExperience(n);
+                            }}
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          <label htmlFor={`exp-${i}-current`} className="text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                            Trabalho aqui atualmente
+                          </label>
+                        </div>
+
+                        <div className="sm:col-span-2 space-y-1">
+                          <label htmlFor={`exp-${i}-description`} className={labelCls}>Descrição</label>
+                          <textarea
+                            id={`exp-${i}-description`}
+                            name="description"
+                            rows={3}
+                            value={exp.description ?? ""}
+                            onChange={(e) => updateField("description", e.target.value)}
+                            className={inputCls + " resize-none"}
+                            placeholder="Principais atividades, tecnologias, conquistas..."
+                          />
                         </div>
                       </div>
                     </div>
-                  ))}
-                  <button onClick={() => setFormDataExperience([...formDataExperience, { company: "", role: "", startYear: "", endYear: "", isCurrent: false, description: "" }])}
-                    className="text-indigo-600 font-bold text-sm flex items-center gap-1"><Plus className="w-4 h-4" /> Adicionar Experiência</button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setFormDataExperience([...formDataExperience, { company: "", role: "", startMonth: "", startYear: "", endMonth: "", endYear: "", isCurrent: false, description: "" }])}
+                    className="text-indigo-600 font-bold text-sm inline-flex items-center gap-1 min-h-[44px] px-2"
+                  >
+                    <Plus className="w-4 h-4" aria-hidden="true" /> Adicionar Experiência
+                  </button>
                 </div>
               )}
 
               {/* FORMAÇÃO */}
               {modalAberto === "education" && (
                 <div className="space-y-6">
-                  {formDataEducation.map((edu, i) => (
+                  {formDataEducation.length === 0 && (
+                    <p className="text-sm text-slate-500 text-center py-4">
+                      Nenhuma formação cadastrada. Clique abaixo para adicionar.
+                    </p>
+                  )}
+                  {formDataEducation.map((edu, i) => {
+                    const updateField = (field: string, value: any) => {
+                      const n = [...formDataEducation];
+                      n[i] = { ...n[i], [field]: value };
+                      setFormDataEducation(n);
+                    };
+                    return (
                     <div key={i} className="p-4 border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-900/50 relative">
-                      <button onClick={() => setFormDataEducation(formDataEducation.filter((_, j) => j !== i))}
-                        className="absolute top-4 right-4 text-rose-500"><Trash2 className="w-4 h-4" /></button>
-                      <div className="grid grid-cols-2 gap-4 mt-2">
-                        {[["Curso", "course"], ["Instituição", "institution"], ["Grau", "degree"], ["Ano Início", "startYear"], ["Ano Fim", "endYear"]].map(([label, field]) => (
-                          <div key={field} className="space-y-1">
-                            <label className={labelCls}>{label}</label>
-                            <input type="text" value={edu[field] ?? ""}
-                              onChange={(e) => { const n = [...formDataEducation]; n[i] = { ...n[i], [field]: e.target.value }; setFormDataEducation(n); }}
-                              className={inputCls} />
-                          </div>
-                        ))}
+                      <button
+                        type="button"
+                        onClick={() => setFormDataEducation(formDataEducation.filter((_, j) => j !== i))}
+                        aria-label={`Remover formação ${i + 1}`}
+                        className="absolute top-2 right-2 inline-flex items-center justify-center w-11 h-11 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition"
+                      >
+                        <Trash2 className="w-4 h-4" aria-hidden="true" />
+                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2 pr-12">
+                        <div className="space-y-1 sm:col-span-2">
+                          <label htmlFor={`edu-${i}-course`} className={labelCls}>Curso / Título</label>
+                          <input
+                            id={`edu-${i}-course`}
+                            type="text"
+                            value={edu.course ?? ""}
+                            onChange={(e) => updateField("course", e.target.value)}
+                            className={inputCls}
+                            placeholder="Ex: Análise e Desenvolvimento de Sistemas"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label htmlFor={`edu-${i}-institution`} className={labelCls}>Instituição</label>
+                          <input
+                            id={`edu-${i}-institution`}
+                            type="text"
+                            value={edu.institution ?? ""}
+                            onChange={(e) => updateField("institution", e.target.value)}
+                            className={inputCls}
+                          />
+                        </div>
+
+                        {/* Grau — mesmas opções do onboarding (inclui "Curso") */}
+                        <div className="space-y-1">
+                          <label htmlFor={`edu-${i}-degree`} className={labelCls}>Grau</label>
+                          <select
+                            id={`edu-${i}-degree`}
+                            value={edu.degree ?? ""}
+                            onChange={(e) => updateField("degree", e.target.value)}
+                            className={inputCls}
+                          >
+                            <option value="">Selecione</option>
+                            <option value="Fundamental">Fundamental</option>
+                            <option value="Médio">Médio / Colegial</option>
+                            <option value="Técnico">Ensino Técnico</option>
+                            <option value="Curso">Curso Livre / Profissionalizante</option>
+                            <option value="Superior">Ensino Superior / Bacharelado</option>
+                            <option value="Pós-graduação">Pós-graduação</option>
+                            <option value="Mestrado">Mestrado</option>
+                            <option value="Doutorado">Doutorado</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label htmlFor={`edu-${i}-startYear`} className={labelCls}>Ano Início</label>
+                          <select
+                            id={`edu-${i}-startYear`}
+                            value={edu.startYear ?? ""}
+                            onChange={(e) => updateField("startYear", e.target.value)}
+                            className={inputCls}
+                          >
+                            <option value="">Selecione</option>
+                            {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label htmlFor={`edu-${i}-endYear`} className={labelCls}>Ano Fim (ou previsto)</label>
+                          <select
+                            id={`edu-${i}-endYear`}
+                            value={edu.endYear ?? ""}
+                            onChange={(e) => updateField("endYear", e.target.value)}
+                            className={inputCls}
+                          >
+                            <option value="">Selecione</option>
+                            {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                          </select>
+                        </div>
+
+                        {/* Carga horária — útil para cursos livres/técnicos */}
+                        <div className="space-y-1 sm:col-span-2">
+                          <label htmlFor={`edu-${i}-hours`} className={labelCls}>
+                            Carga Horária <span className="font-normal normal-case tracking-normal text-slate-400">(opcional)</span>
+                          </label>
+                          <input
+                            id={`edu-${i}-hours`}
+                            type="text"
+                            value={edu.hours ?? ""}
+                            onChange={(e) => updateField("hours", e.target.value)}
+                            className={inputCls}
+                            placeholder="Ex: 80h, 120 horas"
+                          />
+                        </div>
                       </div>
                     </div>
-                  ))}
-                  <button onClick={() => setFormDataEducation([...formDataEducation, { course: "", institution: "", degree: "", startYear: "", endYear: "" }])}
-                    className="text-indigo-600 font-bold text-sm flex items-center gap-1"><Plus className="w-4 h-4" /> Adicionar Formação</button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() => setFormDataEducation([...formDataEducation, { course: "", institution: "", degree: "", startYear: "", endYear: "", hours: "" }])}
+                    className="text-indigo-600 font-bold text-sm inline-flex items-center gap-1 min-h-[44px] px-2"
+                  >
+                    <Plus className="w-4 h-4" aria-hidden="true" /> Adicionar Formação
+                  </button>
                 </div>
               )}
 
-              {/* SKILLS */}
-              {modalAberto === "skills" && (
-                <div className="space-y-5">
-                  <div className="space-y-1.5">
-                    <label className={labelCls}>Stacks (separe por vírgula)</label>
-                    <textarea rows={3} value={formDataStacks} onChange={(e) => setFormDataStacks(e.target.value)}
-                      placeholder="React, Node.js, Python..." className={inputCls + " resize-none"} />
+              {/* SKILLS — editor de tags. O estado continua sendo string CSV (sem
+                  refatorar o handleSaveBulk que já faz split por vírgula). A UI
+                  só renderiza as tags e oferece adicionar/remover individual. */}
+              {modalAberto === "skills" && (() => {
+                const renderTagEditor = (
+                  label: string,
+                  placeholder: string,
+                  value: string,
+                  setValue: (s: string) => void,
+                  color: "indigo" | "amber"
+                ) => {
+                  const tags = value.split(",").map(t => t.trim()).filter(Boolean);
+                  const addTag = (raw: string) => {
+                    const novos = raw.split(",").map(t => t.trim()).filter(Boolean);
+                    if (novos.length === 0) return;
+                    const unicos = [...tags];
+                    for (const n of novos) {
+                      if (!unicos.some(t => t.toLowerCase() === n.toLowerCase())) unicos.push(n);
+                    }
+                    setValue(unicos.join(", "));
+                  };
+                  const removeTag = (idx: number) => {
+                    setValue(tags.filter((_, i) => i !== idx).join(", "));
+                  };
+                  const palette = color === "indigo"
+                    ? "bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300"
+                    : "bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300";
+
+                  return (
+                    <div className="space-y-2">
+                      <label className={labelCls}>{label}</label>
+                      <div className="min-h-[44px] flex flex-wrap gap-2 p-2 bg-slate-50 dark:bg-[#1A1D2D] border border-slate-200 dark:border-slate-700 rounded-xl">
+                        {tags.length === 0 && (
+                          <span className="text-xs text-slate-400 px-2 py-1.5">Nenhum item adicionado</span>
+                        )}
+                        {tags.map((t, i) => (
+                          <span key={`${t}-${i}`} className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${palette}`}>
+                            {t}
+                            <button
+                              type="button"
+                              onClick={() => removeTag(i)}
+                              aria-label={`Remover ${t}`}
+                              className="hover:bg-black/10 dark:hover:bg-white/10 rounded-full p-0.5"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <input
+                        type="text"
+                        placeholder={placeholder}
+                        className={inputCls}
+                        onKeyDown={(e) => {
+                          // Enter ou vírgula → adiciona a tag
+                          if (e.key === "Enter" || e.key === ",") {
+                            e.preventDefault();
+                            const target = e.currentTarget;
+                            addTag(target.value);
+                            target.value = "";
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // Adiciona ao perder foco também (UX: usuário digitou e clicou em "Salvar")
+                          if (e.currentTarget.value.trim()) {
+                            addTag(e.currentTarget.value);
+                            e.currentTarget.value = "";
+                          }
+                        }}
+                      />
+                      <p className="text-[11px] text-slate-400">Pressione <kbd className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 font-mono">Enter</kbd> ou vírgula para adicionar</p>
+                    </div>
+                  );
+                };
+
+                return (
+                  <div className="space-y-6">
+                    {renderTagEditor("Stacks / Tecnologias", "Ex: React, Node.js, Python...", formDataStacks, setFormDataStacks, "indigo")}
+                    {renderTagEditor("Soft Skills", "Ex: Liderança, Comunicação...", formDataSoftSkills, setFormDataSoftSkills, "amber")}
                   </div>
-                  <div className="space-y-1.5">
-                    <label className={labelCls}>Soft Skills (separe por vírgula)</label>
-                    <textarea rows={3} value={formDataSoftSkills} onChange={(e) => setFormDataSoftSkills(e.target.value)}
-                      placeholder="Liderança, Comunicação..." className={inputCls + " resize-none"} />
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
-            <div className="sticky bottom-0 bg-slate-50 dark:bg-[#1A1D2D] border-t border-slate-200 dark:border-slate-800 px-6 py-4 flex justify-end gap-3 z-10">
-              <button onClick={() => { setModalAberto(null); setOtpEmailError(""); }}
-                className="px-5 py-2.5 rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+            <div className="sticky bottom-0 bg-slate-50 dark:bg-[#1A1D2D] border-t border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 z-10">
+              <button
+                type="button"
+                onClick={() => { setModalAberto(null); setOtpEmailError(""); }}
+                className="px-5 py-3 min-h-[44px] rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
+              >
                 Cancelar
               </button>
               <button
